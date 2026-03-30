@@ -25,6 +25,8 @@ const initialFormState: Omit<Patient, 'id' | 'createdAt'> = {
   serviceType: 'Particular',
   insuranceName: '',
   consultationReason: '',
+  consultations: [],
+  nextReturn: '',
 };
 
 export default function PatientForm({ onSuccess, initialData }: { onSuccess: () => void, initialData?: Patient | null }) {

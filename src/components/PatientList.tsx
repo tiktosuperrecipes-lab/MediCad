@@ -3,6 +3,7 @@ import { Search, FileText, Trash2, User, Calendar, Phone, Edit2, Download, Uploa
 import { Patient } from '../types';
 import { getPatients, deletePatient } from '../lib/storage';
 import PatientModal from './PatientModal';
+import ReturnAlerts from './ReturnAlerts';
 
 export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => void }) {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -69,6 +70,8 @@ export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => 
 
   return (
     <div className="max-w-6xl mx-auto">
+      <ReturnAlerts patients={patients} />
+
       {/* Actions & Search Bar */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col lg:flex-row gap-4 items-center justify-between print:hidden">
         <div className="relative w-full lg:max-w-md">
@@ -202,6 +205,10 @@ export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => 
         <PatientModal 
           patient={selectedPatient} 
           onClose={() => setSelectedPatient(null)} 
+          onUpdate={(updated) => {
+            setSelectedPatient(updated);
+            setPatients(getPatients());
+          }}
         />
       )}
     </div>

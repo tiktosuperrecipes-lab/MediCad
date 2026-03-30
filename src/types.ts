@@ -1,3 +1,10 @@
+export interface Consultation {
+  id: string;
+  date: string;
+  notes: string;
+  returnPrediction: string;
+}
+
 export interface Patient {
   id: string;
   // Personal
@@ -25,4 +32,7 @@ export interface Patient {
   insuranceName: string;
   consultationReason: string;
   createdAt: string;
+  // CRM & Prontuário
+  consultations?: Consultation[];
+  nextReturn?: string;
 }
