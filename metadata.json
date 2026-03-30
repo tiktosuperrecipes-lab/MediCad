@@ -1,0 +1,5 @@
+{
+  "name": "Sistema de Cadastro de Pacientes",
+  "description": "Sistema de cadastro de pacientes para consultório médico com armazenamento local e busca de CEP.",
+  "requestFramePermissions": []
+}
