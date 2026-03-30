@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, FileText, Trash2, User, Calendar, Phone, Edit2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, FileText, Trash2, User, Calendar, Phone, Edit2, Download, Upload } from 'lucide-react';
 import { Patient } from '../types';
 import { getPatients, deletePatient } from '../lib/storage';
 import PatientModal from './PatientModal';
@@ -8,6 +8,7 @@ export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => 
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setPatients(getPatients());
@@ -20,6 +21,47 @@ export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => 
     }
   };
 
+  const handleExportBackup = () => {
+    const dataStr = JSON.stringify(patients, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `medicad-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const importedData = JSON.parse(event.target?.result as string);
+        if (Array.isArray(importedData)) {
+          // Salva no localStorage e atualiza o estado
+          localStorage.setItem('@medicad:patients', JSON.stringify(importedData));
+          setPatients(importedData);
+          alert('Backup restaurado com sucesso! ' + importedData.length + ' pacientes carregados.');
+        } else {
+          alert('Arquivo de backup inválido. Certifique-se de usar o arquivo .json gerado pelo sistema.');
+        }
+      } catch (error) {
+        alert('Erro ao ler o arquivo de backup. O arquivo pode estar corrompido.');
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reseta o input para permitir importar o mesmo arquivo novamente se necessário
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const filteredPatients = patients.filter(p => 
     p.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.cpf.includes(searchTerm)
@@ -27,9 +69,9 @@ export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => 
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Search Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between print:hidden">
-        <div className="relative w-full sm:max-w-md">
+      {/* Actions & Search Bar */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col lg:flex-row gap-4 items-center justify-between print:hidden">
+        <div className="relative w-full lg:max-w-md">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-slate-400" />
           </div>
@@ -41,8 +83,38 @@ export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => 
             className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
           />
         </div>
-        <div className="text-sm text-slate-500 font-medium">
-          {filteredPatients.length} {filteredPatients.length === 1 ? 'paciente encontrado' : 'pacientes encontrados'}
+        
+        <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
+          <div className="text-sm text-slate-500 font-medium hidden sm:block mr-2">
+            {filteredPatients.length} {filteredPatients.length === 1 ? 'paciente' : 'pacientes'}
+          </div>
+          
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={handleExportBackup}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
+              title="Baixar cópia de segurança"
+            >
+              <Download className="h-4 w-4" />
+              <span className="text-sm">Exportar Backup</span>
+            </button>
+            
+            <input 
+              type="file" 
+              accept=".json" 
+              className="hidden" 
+              ref={fileInputRef}
+              onChange={handleImportBackup}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
+              title="Restaurar cópia de segurança"
+            >
+              <Upload className="h-4 w-4" />
+              <span className="text-sm">Importar Backup</span>
+            </button>
+          </div>
         </div>
       </div>
 
