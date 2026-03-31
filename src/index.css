@@ -1,12 +1,1 @@
 @import "tailwindcss";
-
-@media print {
-  @page {
-    margin: 0; /* Remove browser default headers and footers */
-  }
-  body {
-    margin: 0;
-    padding: 1.5cm; /* Use padding instead of margin to prevent horizontal overflow */
-    box-sizing: border-box;
-  }
-}
