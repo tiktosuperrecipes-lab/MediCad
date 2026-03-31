@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge } from 'lucide-react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate } from '../types';
 import { savePatient } from '../lib/storage';
+import { getSettings, ClinicSettings } from '../lib/settings';
 
 export default function PatientModal({ 
   patient, 
@@ -18,6 +19,11 @@ export default function PatientModal({
 }) {
   const [activeTab, setActiveTab] = useState<'details' | 'history' | 'prescriptions' | 'certificates'>(initialTab);
   const [printMode, setPrintMode] = useState<'history' | 'prescription' | 'exam' | 'certificate' | 'details'>('details');
+  const [settings, setSettings] = useState<ClinicSettings | null>(null);
+
+  useEffect(() => {
+    setSettings(getSettings());
+  }, []);
   
   // History State
   const [showNewConsultation, setShowNewConsultation] = useState(openNewConsultation);
@@ -46,10 +52,15 @@ export default function PatientModal({
     cid: ''
   });
 
-  const handlePrint = (mode: 'history' | 'prescription' | 'exam' | 'certificate' | 'details') => {
+  const handlePrint = (mode: 'history' | 'prescription' | 'exam' | 'certificate' | 'details', callback?: () => void) => {
     setPrintMode(mode);
     setTimeout(() => {
       window.print();
+      if (callback) {
+        // Add a small delay after print dialog closes before clearing state
+        // to ensure the print rendering is completely finished
+        setTimeout(callback, 100);
+      }
     }, 100);
   };
 
@@ -123,8 +134,7 @@ export default function PatientModal({
     };
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
-    handlePrint('prescription');
-    setMedications([]);
+    handlePrint('prescription', () => setMedications([]));
   };
 
   const handleSaveExam = () => {
@@ -143,8 +153,7 @@ export default function PatientModal({
     };
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
-    handlePrint('exam');
-    setExamRequestText('');
+    handlePrint('exam', () => setExamRequestText(''));
   };
 
   const handleSaveCertificate = () => {
@@ -163,7 +172,7 @@ export default function PatientModal({
     };
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
-    handlePrint('certificate');
+    handlePrint('certificate', () => setCertificateForm({ days: 1, cid: '' }));
   };
 
   return (
@@ -194,9 +203,9 @@ export default function PatientModal({
         <div className="hidden print:block border-b-2 border-slate-800 pb-6 mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Clínica Médica</h1>
-              <p className="text-slate-500 mt-1">Rua Exemplo, 123 - Centro, Cidade/UF</p>
-              <p className="text-slate-500">Telefone: (00) 0000-0000</p>
+              <h1 className="text-3xl font-bold text-slate-900">{settings?.name || 'Clínica Médica'}</h1>
+              <p className="text-slate-500 mt-1">{settings?.address || 'Endereço não configurado'}</p>
+              <p className="text-slate-500">Telefone: {settings?.phone || 'Não configurado'}</p>
             </div>
             <div className="text-right text-sm text-slate-500">
               <p>Data: {new Date().toLocaleDateString('pt-BR')}</p>
@@ -663,7 +672,8 @@ export default function PatientModal({
           {/* Print Footer */}
           <div className="hidden print:block mt-32 pt-8 text-center">
             <div className="w-80 mx-auto border-b border-slate-800 mb-2"></div>
-            <p className="text-base text-slate-800 font-medium">Assinatura e CRM da Médica</p>
+            <p className="text-base text-slate-800 font-medium">{settings?.doctorName || 'Assinatura do(a) Profissional'}</p>
+            <p className="text-sm text-slate-600">{settings?.crm || 'CRM/CRO'}</p>
           </div>
 
         </div>

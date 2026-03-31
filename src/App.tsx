@@ -1,16 +1,17 @@
 import { useState } from 'react';
-import { Activity, Users, UserPlus } from 'lucide-react';
+import { Activity, Users, UserPlus, Settings as SettingsIcon } from 'lucide-react';
 import PatientForm from './components/PatientForm';
 import PatientList from './components/PatientList';
+import Settings from './components/Settings';
 import { Patient } from './types';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'form' | 'list'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'list' | 'settings'>('form');
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
 
-  const handleTabChange = (tab: 'form' | 'list') => {
+  const handleTabChange = (tab: 'form' | 'list' | 'settings') => {
     setActiveTab(tab);
-    if (tab === 'list') {
+    if (tab !== 'form') {
       setEditingPatient(null);
     }
   };
@@ -49,6 +50,15 @@ export default function App() {
                 <Users className="h-4 w-4" />
                 <span className="hidden sm:inline">Pacientes</span>
               </button>
+              <button
+                onClick={() => handleTabChange('settings')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'settings' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
+                }`}
+              >
+                <SettingsIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Configurações</span>
+              </button>
             </nav>
           </div>
         </div>
@@ -71,13 +81,21 @@ export default function App() {
               onSuccess={() => handleTabChange('list')} 
             />
           </div>
-        ) : (
+        ) : activeTab === 'list' ? (
           <div>
             <div className="mb-8 print:hidden">
               <h2 className="text-2xl font-bold text-slate-800">Lista de Pacientes</h2>
               <p className="text-slate-500">Gerencie os pacientes cadastrados no sistema.</p>
             </div>
             <PatientList onEdit={handleEdit} />
+          </div>
+        ) : (
+          <div>
+            <div className="mb-8 print:hidden">
+              <h2 className="text-2xl font-bold text-slate-800">Configurações</h2>
+              <p className="text-slate-500">Personalize os dados da clínica para os cabeçalhos de impressão.</p>
+            </div>
+            <Settings />
           </div>
         )}
       </main>
