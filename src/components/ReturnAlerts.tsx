@@ -19,7 +19,19 @@ export default function ReturnAlerts({ patients }: { patients: Patient[] }) {
       return new Date(a.nextReturn!).getTime() - new Date(b.nextReturn!).getTime();
     });
 
-  if (alerts.length === 0) return null;
+  if (alerts.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6 print:hidden">
+        <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+          <Bell className="h-5 w-5 text-slate-400" />
+          <h2 className="font-semibold text-slate-700">Alertas de Retorno</h2>
+        </div>
+        <div className="p-6 text-center text-slate-500 text-sm">
+          Nenhum paciente com retorno agendado para os próximos 7 dias.
+        </div>
+      </div>
+    );
+  }
 
   const getStatus = (dateStr: string) => {
     const [year, month, day] = dateStr.split('-');

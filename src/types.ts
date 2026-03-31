@@ -5,6 +5,32 @@ export interface Consultation {
   returnPrediction: string;
 }
 
+export interface Medication {
+  id: string;
+  name: string;
+  posology: string;
+}
+
+export interface Prescription {
+  id: string;
+  date: string;
+  medications: Medication[];
+}
+
+export interface ExamRequest {
+  id: string;
+  date: string;
+  requestText: string;
+}
+
+export interface Certificate {
+  id: string;
+  date: string;
+  days: number;
+  cid: string;
+  text: string;
+}
+
 export interface Patient {
   id: string;
   // Personal
@@ -35,4 +61,15 @@ export interface Patient {
   // CRM & Prontuário
   consultations?: Consultation[];
   nextReturn?: string;
+
+  // Anamnese Base
+  qp?: string;
+  hma?: string;
+  hpp?: string;
+  physicalExam?: string;
+
+  // Receituários, Exames e Atestados
+  prescriptions?: Prescription[];
+  examRequests?: ExamRequest[];
+  certificates?: Certificate[];
 }

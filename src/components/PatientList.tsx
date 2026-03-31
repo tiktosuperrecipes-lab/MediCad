@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, FileText, Trash2, User, Calendar, Phone, Edit2, Download, Upload } from 'lucide-react';
+import { Search, FileText, Trash2, User, Calendar, Phone, Edit2, Download, Upload, Activity } from 'lucide-react';
 import { Patient } from '../types';
 import { getPatients, deletePatient } from '../lib/storage';
 import PatientModal from './PatientModal';
@@ -159,17 +159,37 @@ export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => 
                       {new Date(patient.birthDate).toLocaleDateString('pt-BR')}
                     </div>
                   )}
+                  {patient.consultations && patient.consultations.length > 0 && (
+                    <div className="flex items-center text-sm text-slate-600 mt-2">
+                      <Activity className="h-4 w-4 mr-2 text-teal-500" />
+                      <span className="text-teal-700 font-medium">{patient.consultations.length} {patient.consultations.length === 1 ? 'consulta registrada' : 'consultas registradas'}</span>
+                    </div>
+                  )}
+                  {patient.nextReturn && (
+                    <div className="flex items-center text-sm text-amber-700 mt-1 bg-amber-50 px-2 py-1 rounded-md w-fit border border-amber-100">
+                      <Calendar className="h-4 w-4 mr-2 text-amber-600" />
+                      <span className="font-medium">Retorno: {new Date(patient.nextReturn + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               
               <div className="bg-slate-50 px-5 py-3 border-t border-slate-100 flex items-center justify-between">
                 <button
                   onClick={() => setSelectedPatient(patient)}
-                  className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+                  className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors flex items-center gap-1"
                 >
-                  Ver Detalhes
+                  <FileText className="h-4 w-4" />
+                  Abrir Prontuário
                 </button>
                 <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setSelectedPatient({...patient, _openEvolution: true} as any)}
+                    className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                    title="Nova Evolução"
+                  >
+                    <Activity className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={() => onEdit(patient)}
                     className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -209,6 +229,8 @@ export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => 
             setSelectedPatient(updated);
             setPatients(getPatients());
           }}
+          initialTab={(selectedPatient as any)._openEvolution ? 'history' : 'details'}
+          openNewConsultation={(selectedPatient as any)._openEvolution}
         />
       )}
     </div>
