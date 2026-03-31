@@ -4,6 +4,7 @@ export interface ClinicSettings {
   phone: string;
   doctorName: string;
   crm: string;
+  cpf?: string;
 }
 
 const DEFAULT_SETTINGS: ClinicSettings = {
@@ -11,7 +12,8 @@ const DEFAULT_SETTINGS: ClinicSettings = {
   address: 'Rua Exemplo, 123 - Centro, Cidade/UF',
   phone: '(00) 0000-0000',
   doctorName: 'Dr(a). Nome do Médico',
-  crm: 'CRM 00000-UF'
+  crm: 'CRM 00000-UF',
+  cpf: ''
 };
 
 export const getSettings = (): ClinicSettings => {

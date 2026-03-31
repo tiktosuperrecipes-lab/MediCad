@@ -1,24 +1,44 @@
-import { useState } from 'react';
-import { Activity, Users, UserPlus, Settings as SettingsIcon } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Activity, Users, UserPlus, Settings as SettingsIcon, DollarSign } from 'lucide-react';
 import PatientForm from './components/PatientForm';
 import PatientList from './components/PatientList';
 import Settings from './components/Settings';
+import FinancialDashboard from './components/FinancialDashboard';
 import { Patient } from './types';
+import { getPatients } from './lib/storage';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'form' | 'list' | 'settings'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'list' | 'settings' | 'financial'>('form');
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [patients, setPatients] = useState<Patient[]>([]);
 
-  const handleTabChange = (tab: 'form' | 'list' | 'settings') => {
+  useEffect(() => {
+    setPatients(getPatients());
+  }, []);
+
+  const refreshPatients = () => {
+    setPatients(getPatients());
+  };
+
+  const handleTabChange = (tab: 'form' | 'list' | 'settings' | 'financial') => {
     setActiveTab(tab);
     if (tab !== 'form') {
       setEditingPatient(null);
+    }
+    // Refresh patients when switching to list or financial to ensure data is up to date
+    if (tab === 'list' || tab === 'financial') {
+      refreshPatients();
     }
   };
 
   const handleEdit = (patient: Patient) => {
     setEditingPatient(patient);
     setActiveTab('form');
+  };
+
+  const handleFormSuccess = () => {
+    refreshPatients();
+    handleTabChange('list');
   };
 
   return (
@@ -51,6 +71,15 @@ export default function App() {
                 <span className="hidden sm:inline">Pacientes</span>
               </button>
               <button
+                onClick={() => handleTabChange('financial')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'financial' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
+                }`}
+              >
+                <DollarSign className="h-4 w-4" />
+                <span className="hidden sm:inline">Financeiro</span>
+              </button>
+              <button
                 onClick={() => handleTabChange('settings')}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   activeTab === 'settings' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
@@ -78,7 +107,7 @@ export default function App() {
             </div>
             <PatientForm 
               initialData={editingPatient}
-              onSuccess={() => handleTabChange('list')} 
+              onSuccess={handleFormSuccess} 
             />
           </div>
         ) : activeTab === 'list' ? (
@@ -87,8 +116,14 @@ export default function App() {
               <h2 className="text-2xl font-bold text-slate-800">Lista de Pacientes</h2>
               <p className="text-slate-500">Gerencie os pacientes cadastrados no sistema.</p>
             </div>
-            <PatientList onEdit={handleEdit} />
+            <PatientList 
+              patients={patients} 
+              onEdit={handleEdit} 
+              onRefresh={refreshPatients} 
+            />
           </div>
+        ) : activeTab === 'financial' ? (
+          <FinancialDashboard patients={patients} />
         ) : (
           <div>
             <div className="mb-8 print:hidden">

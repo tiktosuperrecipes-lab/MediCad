@@ -8,7 +8,8 @@ export default function Settings() {
     address: '',
     phone: '',
     doctorName: '',
-    crm: ''
+    crm: '',
+    cpf: ''
   });
   const [saved, setSaved] = useState(false);
 
@@ -94,6 +95,16 @@ export default function Settings() {
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                     placeholder="Ex: CRM-SP 123456"
                     required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">CPF (Para Recibos/IR)</label>
+                  <input
+                    type="text"
+                    value={settings.cpf || ''}
+                    onChange={(e) => setSettings({...settings, cpf: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    placeholder="Ex: 000.000.000-00"
                   />
                 </div>
               </div>

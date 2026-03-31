@@ -18,7 +18,7 @@ export default function PatientModal({
   openNewConsultation?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<'details' | 'history' | 'prescriptions' | 'certificates' | 'financial'>(initialTab);
-  const [printMode, setPrintMode] = useState<'history' | 'prescription' | 'exam' | 'certificate' | 'details' | 'budget'>('details');
+  const [printMode, setPrintMode] = useState<'history' | 'prescription' | 'exam' | 'certificate' | 'details' | 'budget' | 'receipt'>('details');
   const [settings, setSettings] = useState<ClinicSettings | null>(null);
 
   useEffect(() => {
@@ -57,14 +57,16 @@ export default function PatientModal({
   const [currentBudgetItem, setCurrentBudgetItem] = useState({ description: '', quantity: 1, unitPrice: 0 });
   const [budgetDiscount, setBudgetDiscount] = useState(0);
   const [printBudgetId, setPrintBudgetId] = useState<string | null>(null);
+  const [printReceiptPaymentId, setPrintReceiptPaymentId] = useState<string | null>(null);
   
   const [paymentForm, setPaymentForm] = useState({
     amount: 0,
     method: 'pix' as Payment['method'],
-    notes: ''
+    notes: '',
+    receiptIssued: false
   });
 
-  const handlePrint = (mode: 'history' | 'prescription' | 'exam' | 'certificate' | 'details' | 'budget', callback?: () => void) => {
+  const handlePrint = (mode: 'history' | 'prescription' | 'exam' | 'certificate' | 'details' | 'budget' | 'receipt', callback?: () => void) => {
     setPrintMode(mode);
     setTimeout(() => {
       window.print();
@@ -271,7 +273,9 @@ export default function PatientModal({
       date: new Date().toISOString().split('T')[0],
       amount: paymentForm.amount,
       method: paymentForm.method,
-      notes: paymentForm.notes
+      notes: paymentForm.notes,
+      receiptIssued: paymentForm.receiptIssued,
+      receiptDate: paymentForm.receiptIssued ? new Date().toISOString().split('T')[0] : undefined
     };
 
     const updatedPatient = {
@@ -281,7 +285,7 @@ export default function PatientModal({
 
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
-    setPaymentForm({ amount: 0, method: 'pix', notes: '' });
+    setPaymentForm({ amount: 0, method: 'pix', notes: '', receiptIssued: false });
   };
 
   const handleDeletePayment = (id: string) => {
@@ -799,10 +803,10 @@ export default function PatientModal({
           </div>
 
           {/* TAB 5: Financeiro */}
-          <div className={`${activeTab === 'financial' ? 'block' : 'hidden'} ${printMode === 'budget' ? 'print:block' : 'print:hidden'}`}>
+          <div className={`${activeTab === 'financial' ? 'block' : 'hidden'} ${printMode === 'budget' || printMode === 'receipt' ? 'print:block' : 'print:hidden'}`}>
             
             {/* Orçamentos */}
-            <div className="mb-12">
+            <div className={`mb-12 ${printMode === 'receipt' ? 'print:hidden' : ''}`}>
               <div className="flex items-center justify-between mb-6 print:hidden">
                 <h3 className="text-lg font-semibold text-slate-800">Orçamento</h3>
                 <div className="flex items-center gap-2">
@@ -957,8 +961,8 @@ export default function PatientModal({
             </div>
 
             {/* Pagamentos */}
-            <div className="border-t border-slate-200 pt-8 print:hidden">
-              <h3 className="text-lg font-semibold text-slate-800 mb-6">Registrar Pagamento</h3>
+            <div className={`border-t border-slate-200 pt-8 print:border-none print:pt-0 ${printMode === 'budget' ? 'print:hidden' : ''}`}>
+              <h3 className="text-lg font-semibold text-slate-800 mb-6 print:hidden">Registrar Pagamento</h3>
               
               <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-8">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
@@ -997,6 +1001,20 @@ export default function PatientModal({
                       placeholder="Ex: Parcela 1/3"
                     />
                   </div>
+                  <div className="md:col-span-2 flex items-end pb-2">
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <div className="relative flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={paymentForm.receiptIssued}
+                          onChange={(e) => setPaymentForm({...paymentForm, receiptIssued: e.target.checked})}
+                          className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-slate-300 bg-white transition-all checked:bg-teal-600 checked:border-teal-600 focus:outline-none"
+                        />
+                        <svg className="absolute h-3.5 w-3.5 pointer-events-none hidden peer-checked:block text-white left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      </div>
+                      <span className="text-sm font-medium text-slate-700 group-hover:text-teal-600 transition-colors">Recibo solicitado?</span>
+                    </label>
+                  </div>
                   <div className="md:col-span-2">
                     <button 
                       onClick={handleSavePayment}
@@ -1009,8 +1027,8 @@ export default function PatientModal({
               </div>
 
               {/* Histórico Financeiro */}
-              <div className="space-y-6">
-                <h4 className="font-semibold text-slate-800">Histórico Financeiro</h4>
+              <div className={`space-y-6 ${printMode === 'receipt' ? 'print:mt-0' : ''}`}>
+                <h4 className="font-semibold text-slate-800 print:hidden">Histórico Financeiro</h4>
                 
                 {(!patient.budgets?.length && !patient.payments?.length) ? (
                   <p className="text-slate-500 text-center py-8 bg-slate-50 rounded-lg border border-slate-200">
@@ -1020,8 +1038,8 @@ export default function PatientModal({
                   <div className="space-y-4">
                     {/* Pagamentos */}
                     {patient.payments?.map((payment) => (
-                      <div key={payment.id} className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-green-500">
-                        <div>
+                      <div key={payment.id} className={`flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-green-500 ${printMode === 'receipt' && printReceiptPaymentId !== payment.id ? 'print:hidden' : ''}`}>
+                        <div className="print:hidden">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-900">Pagamento Recebido</span>
                             <span className="text-sm text-slate-500">
@@ -1036,26 +1054,102 @@ export default function PatientModal({
                                 <span>{payment.notes}</span>
                               </>
                             )}
+                            {payment.receiptIssued && (
+                              <>
+                                <span>•</span>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-50 text-teal-700 rounded text-[10px] font-bold uppercase tracking-wider border border-teal-100">
+                                  Recibo Emitido {payment.receiptDate && `(${new Date(payment.receiptDate).toLocaleDateString('pt-BR')})`}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
+
+                        {/* Receipt Print View */}
+                        <div className={`hidden ${printMode === 'receipt' && printReceiptPaymentId === payment.id ? 'print:block w-full' : ''}`}>
+                          <div className="text-center mb-8">
+                            <h2 className="text-2xl font-bold text-slate-900 uppercase tracking-wider">Recibo</h2>
+                            <p className="text-slate-500 mt-1">Nº {payment.id.substring(0, 8).toUpperCase()}</p>
+                          </div>
+                          
+                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mb-8">
+                            <div className="flex justify-between items-center mb-6 border-b border-slate-200 pb-6">
+                              <span className="text-lg text-slate-600">Valor Recebido:</span>
+                              <span className="text-3xl font-bold text-slate-900">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}
+                              </span>
+                            </div>
+                            
+                            <div className="space-y-4 text-slate-800 leading-relaxed">
+                              <p>
+                                Recebi(emos) de <strong>{patient.fullName}</strong>, 
+                                {patient.cpf ? ` inscrito(a) no CPF sob o nº ${patient.cpf},` : ''} 
+                                a importância supra de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}, 
+                                referente a serviços prestados em saúde.
+                              </p>
+                              {payment.notes && (
+                                <p><strong>Referente a:</strong> {payment.notes}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-end mt-16">
+                            <div className="text-slate-600">
+                              <p>{settings?.address.split('-')[1]?.trim() || 'Local'}, {new Date(payment.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                            </div>
+                            <div className="text-center w-64">
+                              <div className="border-t border-slate-800 pt-2">
+                                <p className="font-bold text-slate-900">{settings?.doctorName || 'Nome do Profissional'}</p>
+                                <p className="text-sm text-slate-600">{settings?.crm || 'CRM/CRO'}</p>
+                                {settings?.cpf && <p className="text-sm text-slate-600">CPF: {settings.cpf}</p>}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 print:hidden">
                           <div className="text-lg font-bold text-green-600">
                             + {formatCurrency(payment.amount)}
                           </div>
-                          <button
-                            onClick={() => handleDeletePayment(payment.id)}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Excluir Pagamento"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                // Mark as issued if not already
+                                if (!payment.receiptIssued) {
+                                  const updatedPatient = {
+                                    ...patient,
+                                    payments: patient.payments?.map(p => 
+                                      p.id === payment.id 
+                                        ? { ...p, receiptIssued: true, receiptDate: new Date().toISOString().split('T')[0] } 
+                                        : p
+                                    )
+                                  };
+                                  savePatient(updatedPatient);
+                                  onUpdate(updatedPatient);
+                                }
+                                setPrintReceiptPaymentId(payment.id);
+                                handlePrint('receipt', () => setPrintReceiptPaymentId(null));
+                              }}
+                              className={`p-2 rounded-lg transition-colors ${payment.receiptIssued ? 'text-teal-600 bg-teal-50 hover:bg-teal-100' : 'text-slate-400 hover:text-teal-600 hover:bg-teal-50'}`}
+                              title={payment.receiptIssued ? "Reimprimir Recibo" : "Imprimir Recibo"}
+                            >
+                              <Printer className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePayment(payment.id)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Excluir Pagamento"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
 
                     {/* Orçamentos Salvos */}
                     {patient.budgets?.map((budget) => (
-                      <div key={budget.id} className="p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-blue-500">
+                      <div key={budget.id} className={`p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-blue-500 ${printMode === 'receipt' ? 'print:hidden' : ''}`}>
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-900">Orçamento Gerado</span>

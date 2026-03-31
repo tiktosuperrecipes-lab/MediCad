@@ -55,6 +55,8 @@ export interface Payment {
   amount: number;
   method: 'pix' | 'credit' | 'debit' | 'cash' | 'transfer';
   notes?: string;
+  receiptIssued?: boolean;
+  receiptDate?: string;
 }
 
 export interface Patient {

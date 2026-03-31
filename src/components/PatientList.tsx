@@ -5,20 +5,23 @@ import { getPatients, deletePatient } from '../lib/storage';
 import PatientModal from './PatientModal';
 import ReturnAlerts from './ReturnAlerts';
 
-export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => void }) {
-  const [patients, setPatients] = useState<Patient[]>([]);
+export default function PatientList({ 
+  onEdit, 
+  patients, 
+  onRefresh 
+}: { 
+  onEdit: (patient: Patient) => void;
+  patients: Patient[];
+  onRefresh: () => void;
+}) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setPatients(getPatients());
-  }, []);
-
   const handleDelete = (id: string, name: string) => {
     if (window.confirm(`Tem certeza que deseja excluir o paciente ${name}? Esta ação não pode ser desfeita.`)) {
       deletePatient(id);
-      setPatients(getPatients());
+      onRefresh();
     }
   };
 
@@ -81,7 +84,7 @@ export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => 
           });
 
           localStorage.setItem('@medicad:patients', JSON.stringify(mergedPatients));
-          setPatients(mergedPatients);
+          onRefresh();
           alert(`Backup restaurado com sucesso!\n\n${added} novos pacientes adicionados.\n${updated} pacientes atualizados.`);
         } else {
           alert('Arquivo de backup inválido. Certifique-se de usar o arquivo .json gerado pelo sistema.');
@@ -261,7 +264,7 @@ export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => 
           onClose={() => setSelectedPatient(null)} 
           onUpdate={(updated) => {
             setSelectedPatient(updated);
-            setPatients(getPatients());
+            onRefresh();
           }}
           initialTab={(selectedPatient as any)._openEvolution ? 'history' : 'details'}
           openNewConsultation={(selectedPatient as any)._openEvolution}
