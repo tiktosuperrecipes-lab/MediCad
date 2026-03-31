@@ -31,6 +31,32 @@ export interface Certificate {
   text: string;
 }
 
+export interface BudgetItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface Budget {
+  id: string;
+  date: string;
+  items: BudgetItem[];
+  totalAmount: number;
+  discount: number;
+  finalAmount: number;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
+export interface Payment {
+  id: string;
+  date: string;
+  amount: number;
+  method: 'pix' | 'credit' | 'debit' | 'cash' | 'transfer';
+  notes?: string;
+}
+
 export interface Patient {
   id: string;
   // Personal
@@ -72,4 +98,8 @@ export interface Patient {
   prescriptions?: Prescription[];
   examRequests?: ExamRequest[];
   certificates?: Certificate[];
+
+  // Financeiro
+  budgets?: Budget[];
+  payments?: Payment[];
 }

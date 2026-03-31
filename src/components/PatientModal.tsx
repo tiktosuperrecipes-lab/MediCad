@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge } from 'lucide-react';
-import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate } from '../types';
+import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2 } from 'lucide-react';
+import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment } from '../types';
 import { savePatient } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 
@@ -14,11 +14,11 @@ export default function PatientModal({
   patient: Patient; 
   onClose: () => void;
   onUpdate: (p: Patient) => void;
-  initialTab?: 'details' | 'history' | 'prescriptions' | 'certificates';
+  initialTab?: 'details' | 'history' | 'prescriptions' | 'certificates' | 'financial';
   openNewConsultation?: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<'details' | 'history' | 'prescriptions' | 'certificates'>(initialTab);
-  const [printMode, setPrintMode] = useState<'history' | 'prescription' | 'exam' | 'certificate' | 'details'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'history' | 'prescriptions' | 'certificates' | 'financial'>(initialTab);
+  const [printMode, setPrintMode] = useState<'history' | 'prescription' | 'exam' | 'certificate' | 'details' | 'budget'>('details');
   const [settings, setSettings] = useState<ClinicSettings | null>(null);
 
   useEffect(() => {
@@ -52,7 +52,18 @@ export default function PatientModal({
     cid: ''
   });
 
-  const handlePrint = (mode: 'history' | 'prescription' | 'exam' | 'certificate' | 'details', callback?: () => void) => {
+  // Financial State
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
+  const [currentBudgetItem, setCurrentBudgetItem] = useState({ description: '', quantity: 1, unitPrice: 0 });
+  const [budgetDiscount, setBudgetDiscount] = useState(0);
+  
+  const [paymentForm, setPaymentForm] = useState({
+    amount: 0,
+    method: 'pix' as Payment['method'],
+    notes: ''
+  });
+
+  const handlePrint = (mode: 'history' | 'prescription' | 'exam' | 'certificate' | 'details' | 'budget', callback?: () => void) => {
     setPrintMode(mode);
     setTimeout(() => {
       window.print();
@@ -175,6 +186,85 @@ export default function PatientModal({
     handlePrint('certificate', () => setCertificateForm({ days: 1, cid: '' }));
   };
 
+  const handleAddBudgetItem = () => {
+    if (!currentBudgetItem.description.trim() || currentBudgetItem.quantity <= 0 || currentBudgetItem.unitPrice <= 0) return;
+    
+    const newItem: BudgetItem = {
+      id: crypto.randomUUID(),
+      description: currentBudgetItem.description,
+      quantity: currentBudgetItem.quantity,
+      unitPrice: currentBudgetItem.unitPrice,
+      total: currentBudgetItem.quantity * currentBudgetItem.unitPrice
+    };
+    
+    setBudgetItems([...budgetItems, newItem]);
+    setCurrentBudgetItem({ description: '', quantity: 1, unitPrice: 0 });
+  };
+
+  const handleRemoveBudgetItem = (id: string) => {
+    setBudgetItems(budgetItems.filter(item => item.id !== id));
+  };
+
+  const handleSaveBudget = () => {
+    if (budgetItems.length === 0) {
+      alert('Adicione pelo menos um item ao orçamento.');
+      return;
+    }
+
+    const totalAmount = budgetItems.reduce((sum, item) => sum + item.total, 0);
+    const finalAmount = totalAmount - budgetDiscount;
+
+    const newBudget: Budget = {
+      id: crypto.randomUUID(),
+      date: new Date().toISOString().split('T')[0],
+      items: budgetItems,
+      totalAmount,
+      discount: budgetDiscount,
+      finalAmount,
+      status: 'pending'
+    };
+
+    const updatedPatient = {
+      ...patient,
+      budgets: [newBudget, ...(patient.budgets || [])]
+    };
+
+    savePatient(updatedPatient);
+    onUpdate(updatedPatient);
+    handlePrint('budget', () => {
+      setBudgetItems([]);
+      setBudgetDiscount(0);
+    });
+  };
+
+  const handleSavePayment = () => {
+    if (paymentForm.amount <= 0) {
+      alert('O valor do pagamento deve ser maior que zero.');
+      return;
+    }
+
+    const newPayment: Payment = {
+      id: crypto.randomUUID(),
+      date: new Date().toISOString().split('T')[0],
+      amount: paymentForm.amount,
+      method: paymentForm.method,
+      notes: paymentForm.notes
+    };
+
+    const updatedPatient = {
+      ...patient,
+      payments: [newPayment, ...(patient.payments || [])]
+    };
+
+    savePatient(updatedPatient);
+    onUpdate(updatedPatient);
+    setPaymentForm({ amount: 0, method: 'pix', notes: '' });
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm print:static print:p-0 print:bg-white print:block">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible flex flex-col">
@@ -245,6 +335,13 @@ export default function PatientModal({
             >
               <FileBadge className="h-4 w-4" />
               Atestados
+            </button>
+            <button 
+              onClick={() => setActiveTab('financial')}
+              className={`py-4 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'financial' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+              <DollarSign className="h-4 w-4" />
+              Financeiro
             </button>
           </div>
         </div>
@@ -666,6 +763,257 @@ export default function PatientModal({
               portador(a) do CPF <strong>{patient.cpf}</strong>, necessita de <strong>{certificateForm.days}</strong> {certificateForm.days === 1 ? 'dia' : 'dias'} de repouso 
               a partir desta data por motivos de saúde.
               {certificateForm.cid && <span> CID: <strong>{certificateForm.cid}</strong>.</span>}
+            </div>
+          </div>
+
+          {/* TAB 5: Financeiro */}
+          <div className={`${activeTab === 'financial' ? 'block' : 'hidden'} ${printMode === 'budget' ? 'print:block' : 'print:hidden'}`}>
+            
+            {/* Orçamentos */}
+            <div className="mb-12">
+              <div className="flex items-center justify-between mb-6 print:hidden">
+                <h3 className="text-lg font-semibold text-slate-800">Orçamento</h3>
+                <button 
+                  onClick={handleSaveBudget}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  <Printer className="h-4 w-4" />
+                  Imprimir Orçamento
+                </button>
+              </div>
+
+              <div className="hidden print:block border-b-2 border-slate-800 pb-2 mb-6">
+                <h3 className="text-2xl font-bold text-slate-900 text-center">ORÇAMENTO</h3>
+              </div>
+
+              <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-6 print:hidden">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                  <div className="md:col-span-6">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Procedimento / Item</label>
+                    <input
+                      type="text"
+                      value={currentBudgetItem.description}
+                      onChange={(e) => setCurrentBudgetItem({...currentBudgetItem, description: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                      placeholder="Ex: Restauração Resina"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Qtd</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={currentBudgetItem.quantity}
+                      onChange={(e) => setCurrentBudgetItem({...currentBudgetItem, quantity: parseInt(e.target.value) || 1})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor Unit. (R$)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={currentBudgetItem.unitPrice}
+                      onChange={(e) => setCurrentBudgetItem({...currentBudgetItem, unitPrice: parseFloat(e.target.value) || 0})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <button 
+                      onClick={handleAddBudgetItem}
+                      className="w-full px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-lg transition-colors h-[42px]"
+                    >
+                      Adicionar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {budgetItems.length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mb-6 print:border-none">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 print:bg-transparent print:border-slate-800">
+                        <th className="p-4 font-semibold text-slate-700">Procedimento / Item</th>
+                        <th className="p-4 font-semibold text-slate-700 text-center">Qtd</th>
+                        <th className="p-4 font-semibold text-slate-700 text-right">Valor Unit.</th>
+                        <th className="p-4 font-semibold text-slate-700 text-right">Total</th>
+                        <th className="p-4 print:hidden"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {budgetItems.map((item) => (
+                        <tr key={item.id} className="border-b border-slate-100 last:border-0 print:border-slate-200">
+                          <td className="p-4 text-slate-800">{item.description}</td>
+                          <td className="p-4 text-slate-800 text-center">{item.quantity}</td>
+                          <td className="p-4 text-slate-800 text-right">{formatCurrency(item.unitPrice)}</td>
+                          <td className="p-4 text-slate-800 text-right font-medium">{formatCurrency(item.total)}</td>
+                          <td className="p-4 text-right print:hidden">
+                            <button 
+                              onClick={() => handleRemoveBudgetItem(item.id)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-50 print:bg-transparent">
+                      <tr>
+                        <td colSpan={3} className="p-4 text-right font-semibold text-slate-700">Subtotal:</td>
+                        <td className="p-4 text-right font-bold text-slate-900">
+                          {formatCurrency(budgetItems.reduce((sum, item) => sum + item.total, 0))}
+                        </td>
+                        <td className="print:hidden"></td>
+                      </tr>
+                      <tr className="print:hidden">
+                        <td colSpan={3} className="p-4 text-right font-semibold text-slate-700 align-middle">Desconto (R$):</td>
+                        <td className="p-4">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={budgetDiscount}
+                            onChange={(e) => setBudgetDiscount(parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-right"
+                          />
+                        </td>
+                        <td></td>
+                      </tr>
+                      {budgetDiscount > 0 && (
+                        <tr className="hidden print:table-row">
+                          <td colSpan={3} className="p-4 text-right font-semibold text-slate-700">Desconto:</td>
+                          <td className="p-4 text-right font-bold text-red-600">
+                            - {formatCurrency(budgetDiscount)}
+                          </td>
+                        </tr>
+                      )}
+                      <tr>
+                        <td colSpan={3} className="p-4 text-right font-bold text-slate-900 text-lg">Total Final:</td>
+                        <td className="p-4 text-right font-bold text-teal-700 text-lg">
+                          {formatCurrency(budgetItems.reduce((sum, item) => sum + item.total, 0) - budgetDiscount)}
+                        </td>
+                        <td className="print:hidden"></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Pagamentos */}
+            <div className="border-t border-slate-200 pt-8 print:hidden">
+              <h3 className="text-lg font-semibold text-slate-800 mb-6">Registrar Pagamento</h3>
+              
+              <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                  <div className="md:col-span-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor (R$)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={paymentForm.amount}
+                      onChange={(e) => setPaymentForm({...paymentForm, amount: parseFloat(e.target.value) || 0})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Forma de Pagamento</label>
+                    <select
+                      value={paymentForm.method}
+                      onChange={(e) => setPaymentForm({...paymentForm, method: e.target.value as Payment['method']})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white"
+                    >
+                      <option value="pix">PIX</option>
+                      <option value="credit">Cartão de Crédito</option>
+                      <option value="debit">Cartão de Débito</option>
+                      <option value="cash">Dinheiro</option>
+                      <option value="transfer">Transferência</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-4">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Observações (Opcional)</label>
+                    <input
+                      type="text"
+                      value={paymentForm.notes}
+                      onChange={(e) => setPaymentForm({...paymentForm, notes: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                      placeholder="Ex: Parcela 1/3"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <button 
+                      onClick={handleSavePayment}
+                      className="w-full px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors h-[42px]"
+                    >
+                      Registrar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Histórico Financeiro */}
+              <div className="space-y-6">
+                <h4 className="font-semibold text-slate-800">Histórico Financeiro</h4>
+                
+                {(!patient.budgets?.length && !patient.payments?.length) ? (
+                  <p className="text-slate-500 text-center py-8 bg-slate-50 rounded-lg border border-slate-200">
+                    Nenhum registro financeiro encontrado.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Pagamentos */}
+                    {patient.payments?.map((payment) => (
+                      <div key={payment.id} className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-green-500">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900">Pagamento Recebido</span>
+                            <span className="text-sm text-slate-500">
+                              {new Date(payment.date).toLocaleDateString('pt-BR')}
+                            </span>
+                          </div>
+                          <div className="text-sm text-slate-600 mt-1 flex items-center gap-2">
+                            <span className="capitalize">{payment.method}</span>
+                            {payment.notes && (
+                              <>
+                                <span>•</span>
+                                <span>{payment.notes}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-lg font-bold text-green-600">
+                          + {formatCurrency(payment.amount)}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Orçamentos Salvos */}
+                    {patient.budgets?.map((budget) => (
+                      <div key={budget.id} className="p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-blue-500">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900">Orçamento Gerado</span>
+                            <span className="text-sm text-slate-500">
+                              {new Date(budget.date).toLocaleDateString('pt-BR')}
+                            </span>
+                          </div>
+                          <div className="text-lg font-bold text-blue-600">
+                            {formatCurrency(budget.finalAmount)}
+                          </div>
+                        </div>
+                        <div className="text-sm text-slate-600">
+                          {budget.items.length} {budget.items.length === 1 ? 'item' : 'itens'}
+                          {budget.discount > 0 && ` • Desconto: ${formatCurrency(budget.discount)}`}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
