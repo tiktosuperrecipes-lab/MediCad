@@ -169,7 +169,7 @@ export default function PatientModal({
   };
 
   const handleSaveCertificate = () => {
-    const text = `Atesto para os devidos fins que o(a) paciente ${patient.fullName}, portador do CPF ${patient.cpf}, necessita de ${certificateForm.days} dias de repouso a partir desta data por motivos de saúde.${certificateForm.cid ? ` CID: ${certificateForm.cid}` : ''}`;
+    const text = `Atesto para os devidos fins que o(a) paciente ${patient.fullName}, portador do CPF ${patient.cpf}, necessita de ${certificateForm.days} dias de repouso a partir desta data por motivos de tratamento odontológico.${certificateForm.cid ? ` CID: ${certificateForm.cid}` : ''}`;
     
     const newCert: Certificate = {
       id: crypto.randomUUID(),
@@ -251,6 +251,15 @@ export default function PatientModal({
     handlePrint('budget', () => setPrintBudgetId(null));
   };
 
+  const handleDeleteBudget = (id: string) => {
+    const updatedPatient = {
+      ...patient,
+      budgets: patient.budgets?.filter(b => b.id !== id)
+    };
+    savePatient(updatedPatient);
+    onUpdate(updatedPatient);
+  };
+
   const handleSavePayment = () => {
     if (paymentForm.amount <= 0) {
       alert('O valor do pagamento deve ser maior que zero.');
@@ -273,6 +282,15 @@ export default function PatientModal({
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
     setPaymentForm({ amount: 0, method: 'pix', notes: '' });
+  };
+
+  const handleDeletePayment = (id: string) => {
+    const updatedPatient = {
+      ...patient,
+      payments: patient.payments?.filter(p => p.id !== id)
+    };
+    savePatient(updatedPatient);
+    onUpdate(updatedPatient);
   };
 
   const formatCurrency = (value: number) => {
@@ -733,7 +751,7 @@ export default function PatientModal({
           {/* TAB 4: Atestados */}
           <div className={`${activeTab === 'certificates' ? 'block' : 'hidden'} ${printMode === 'certificate' ? 'print:block' : 'print:hidden'}`}>
             <div className="flex items-center justify-between mb-6 print:hidden">
-              <h3 className="text-lg font-semibold text-slate-800">Atestado Médico</h3>
+              <h3 className="text-lg font-semibold text-slate-800">Atestado Odontológico</h3>
               <button 
                 onClick={handleSaveCertificate}
                 className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -744,7 +762,7 @@ export default function PatientModal({
             </div>
 
             <div className="hidden print:block border-b-2 border-slate-800 pb-2 mb-12">
-              <h3 className="text-2xl font-bold text-slate-900 text-center">ATESTADO MÉDICO</h3>
+              <h3 className="text-2xl font-bold text-slate-900 text-center">ATESTADO ODONTOLÓGICO</h3>
             </div>
 
             <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8 print:hidden">
@@ -766,7 +784,7 @@ export default function PatientModal({
                     value={certificateForm.cid}
                     onChange={(e) => setCertificateForm({...certificateForm, cid: e.target.value})}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none uppercase"
-                    placeholder="Ex: J01.9"
+                    placeholder="Ex: K04.0"
                   />
                 </div>
               </div>
@@ -775,7 +793,7 @@ export default function PatientModal({
             <div className="bg-white p-8 border border-slate-200 rounded-xl print:border-none print:p-0 text-lg leading-loose text-slate-900 text-justify">
               Atesto para os devidos fins que o(a) paciente <strong>{patient.fullName}</strong>, 
               portador(a) do CPF <strong>{patient.cpf}</strong>, necessita de <strong>{certificateForm.days}</strong> {certificateForm.days === 1 ? 'dia' : 'dias'} de repouso 
-              a partir desta data por motivos de saúde.
+              a partir desta data por motivos de tratamento odontológico.
               {certificateForm.cid && <span> CID: <strong>{certificateForm.cid}</strong>.</span>}
             </div>
           </div>
@@ -1020,8 +1038,17 @@ export default function PatientModal({
                             )}
                           </div>
                         </div>
-                        <div className="text-lg font-bold text-green-600">
-                          + {formatCurrency(payment.amount)}
+                        <div className="flex items-center gap-4">
+                          <div className="text-lg font-bold text-green-600">
+                            + {formatCurrency(payment.amount)}
+                          </div>
+                          <button
+                            onClick={() => handleDeletePayment(payment.id)}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Excluir Pagamento"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -1036,7 +1063,7 @@ export default function PatientModal({
                               {new Date(budget.date).toLocaleDateString('pt-BR')}
                             </span>
                           </div>
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
                             <span className="text-lg font-bold text-blue-600">
                               {formatCurrency(budget.finalAmount)}
                             </span>
@@ -1047,11 +1074,28 @@ export default function PatientModal({
                             >
                               <Printer className="h-4 w-4" />
                             </button>
+                            <button
+                              onClick={() => handleDeleteBudget(budget.id)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Excluir Orçamento"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         </div>
-                        <div className="text-sm text-slate-600">
-                          {budget.items.length} {budget.items.length === 1 ? 'item' : 'itens'}
-                          {budget.discount > 0 && ` • Desconto: ${formatCurrency(budget.discount)}`}
+                        <div className="text-sm text-slate-600 mt-2">
+                          <ul className="list-disc list-inside space-y-1">
+                            {budget.items.map((item, idx) => (
+                              <li key={idx} className="truncate">
+                                {item.quantity}x {item.description} - {formatCurrency(item.unitPrice)}
+                              </li>
+                            ))}
+                          </ul>
+                          {budget.discount > 0 && (
+                            <div className="mt-2 text-red-500 font-medium">
+                              Desconto aplicado: {formatCurrency(budget.discount)}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
