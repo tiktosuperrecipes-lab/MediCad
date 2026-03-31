@@ -44,10 +44,45 @@ export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => 
       try {
         const importedData = JSON.parse(event.target?.result as string);
         if (Array.isArray(importedData)) {
-          // Salva no localStorage e atualiza o estado
-          localStorage.setItem('@medicad:patients', JSON.stringify(importedData));
-          setPatients(importedData);
-          alert('Backup restaurado com sucesso! ' + importedData.length + ' pacientes carregados.');
+          // Merge imported data with existing data
+          const existingPatients = getPatients();
+          const mergedPatients = [...existingPatients];
+          
+          let added = 0;
+          let updated = 0;
+
+          importedData.forEach((importedPatient: Patient) => {
+            const existingIndex = mergedPatients.findIndex(p => p.id === importedPatient.id);
+            if (existingIndex >= 0) {
+              // Merge arrays safely for backward compatibility
+              mergedPatients[existingIndex] = {
+                ...importedPatient,
+                consultations: importedPatient.consultations || mergedPatients[existingIndex].consultations || [],
+                prescriptions: importedPatient.prescriptions || mergedPatients[existingIndex].prescriptions || [],
+                examRequests: importedPatient.examRequests || mergedPatients[existingIndex].examRequests || [],
+                certificates: importedPatient.certificates || mergedPatients[existingIndex].certificates || [],
+                budgets: importedPatient.budgets || mergedPatients[existingIndex].budgets || [],
+                payments: importedPatient.payments || mergedPatients[existingIndex].payments || [],
+              };
+              updated++;
+            } else {
+              // Ensure new patients have the arrays even if from old backup
+              mergedPatients.push({
+                ...importedPatient,
+                consultations: importedPatient.consultations || [],
+                prescriptions: importedPatient.prescriptions || [],
+                examRequests: importedPatient.examRequests || [],
+                certificates: importedPatient.certificates || [],
+                budgets: importedPatient.budgets || [],
+                payments: importedPatient.payments || [],
+              });
+              added++;
+            }
+          });
+
+          localStorage.setItem('@medicad:patients', JSON.stringify(mergedPatients));
+          setPatients(mergedPatients);
+          alert(`Backup restaurado com sucesso!\n\n${added} novos pacientes adicionados.\n${updated} pacientes atualizados.`);
         } else {
           alert('Arquivo de backup inválido. Certifique-se de usar o arquivo .json gerado pelo sistema.');
         }
@@ -57,7 +92,6 @@ export default function PatientList({ onEdit }: { onEdit: (patient: Patient) => 
     };
     reader.readAsText(file);
     
-    // Reseta o input para permitir importar o mesmo arquivo novamente se necessário
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }

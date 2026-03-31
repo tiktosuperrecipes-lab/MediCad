@@ -56,6 +56,7 @@ export default function PatientModal({
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
   const [currentBudgetItem, setCurrentBudgetItem] = useState({ description: '', quantity: 1, unitPrice: 0 });
   const [budgetDiscount, setBudgetDiscount] = useState(0);
+  const [printBudgetId, setPrintBudgetId] = useState<string | null>(null);
   
   const [paymentForm, setPaymentForm] = useState({
     amount: 0,
@@ -231,10 +232,23 @@ export default function PatientModal({
 
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
-    handlePrint('budget', () => {
-      setBudgetItems([]);
-      setBudgetDiscount(0);
-    });
+    setBudgetItems([]);
+    setBudgetDiscount(0);
+    alert('Orçamento salvo com sucesso!');
+  };
+
+  const handlePrintCurrentBudget = () => {
+    if (budgetItems.length === 0) {
+      alert('Adicione pelo menos um item ao orçamento para imprimir.');
+      return;
+    }
+    setPrintBudgetId(null);
+    handlePrint('budget');
+  };
+
+  const handlePrintSavedBudget = (id: string) => {
+    setPrintBudgetId(id);
+    handlePrint('budget', () => setPrintBudgetId(null));
   };
 
   const handleSavePayment = () => {
@@ -773,13 +787,22 @@ export default function PatientModal({
             <div className="mb-12">
               <div className="flex items-center justify-between mb-6 print:hidden">
                 <h3 className="text-lg font-semibold text-slate-800">Orçamento</h3>
-                <button 
-                  onClick={handleSaveBudget}
-                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors"
-                >
-                  <Printer className="h-4 w-4" />
-                  Imprimir Orçamento
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={handleSaveBudget}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors"
+                  >
+                    <Save className="h-4 w-4" />
+                    Salvar Orçamento
+                  </button>
+                  <button 
+                    onClick={handlePrintCurrentBudget}
+                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Imprimir Orçamento
+                  </button>
+                </div>
               </div>
 
               <div className="hidden print:block border-b-2 border-slate-800 pb-2 mb-6">
@@ -830,77 +853,89 @@ export default function PatientModal({
                 </div>
               </div>
 
-              {budgetItems.length > 0 && (
-                <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mb-6 print:border-none">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 print:bg-transparent print:border-slate-800">
-                        <th className="p-4 font-semibold text-slate-700">Procedimento / Item</th>
-                        <th className="p-4 font-semibold text-slate-700 text-center">Qtd</th>
-                        <th className="p-4 font-semibold text-slate-700 text-right">Valor Unit.</th>
-                        <th className="p-4 font-semibold text-slate-700 text-right">Total</th>
-                        <th className="p-4 print:hidden"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {budgetItems.map((item) => (
-                        <tr key={item.id} className="border-b border-slate-100 last:border-0 print:border-slate-200">
-                          <td className="p-4 text-slate-800">{item.description}</td>
-                          <td className="p-4 text-slate-800 text-center">{item.quantity}</td>
-                          <td className="p-4 text-slate-800 text-right">{formatCurrency(item.unitPrice)}</td>
-                          <td className="p-4 text-slate-800 text-right font-medium">{formatCurrency(item.total)}</td>
-                          <td className="p-4 text-right print:hidden">
-                            <button 
-                              onClick={() => handleRemoveBudgetItem(item.id)}
-                              className="text-red-500 hover:text-red-700 p-1"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </td>
+              {(() => {
+                const budgetToPrint = printBudgetId ? patient.budgets?.find(b => b.id === printBudgetId) : null;
+                const displayItems = budgetToPrint ? budgetToPrint.items : budgetItems;
+                const displayDiscount = budgetToPrint ? budgetToPrint.discount : budgetDiscount;
+                
+                if (displayItems.length === 0) return null;
+
+                return (
+                  <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mb-6 print:border-none">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 print:bg-transparent print:border-slate-800">
+                          <th className="p-4 font-semibold text-slate-700">Procedimento / Item</th>
+                          <th className="p-4 font-semibold text-slate-700 text-center">Qtd</th>
+                          <th className="p-4 font-semibold text-slate-700 text-right">Valor Unit.</th>
+                          <th className="p-4 font-semibold text-slate-700 text-right">Total</th>
+                          {!budgetToPrint && <th className="p-4 print:hidden"></th>}
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-slate-50 print:bg-transparent">
-                      <tr>
-                        <td colSpan={3} className="p-4 text-right font-semibold text-slate-700">Subtotal:</td>
-                        <td className="p-4 text-right font-bold text-slate-900">
-                          {formatCurrency(budgetItems.reduce((sum, item) => sum + item.total, 0))}
-                        </td>
-                        <td className="print:hidden"></td>
-                      </tr>
-                      <tr className="print:hidden">
-                        <td colSpan={3} className="p-4 text-right font-semibold text-slate-700 align-middle">Desconto (R$):</td>
-                        <td className="p-4">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={budgetDiscount}
-                            onChange={(e) => setBudgetDiscount(parseFloat(e.target.value) || 0)}
-                            className="w-full px-3 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-right"
-                          />
-                        </td>
-                        <td></td>
-                      </tr>
-                      {budgetDiscount > 0 && (
-                        <tr className="hidden print:table-row">
-                          <td colSpan={3} className="p-4 text-right font-semibold text-slate-700">Desconto:</td>
-                          <td className="p-4 text-right font-bold text-red-600">
-                            - {formatCurrency(budgetDiscount)}
+                      </thead>
+                      <tbody>
+                        {displayItems.map((item) => (
+                          <tr key={item.id} className="border-b border-slate-100 last:border-0 print:border-slate-200">
+                            <td className="p-4 text-slate-800">{item.description}</td>
+                            <td className="p-4 text-slate-800 text-center">{item.quantity}</td>
+                            <td className="p-4 text-slate-800 text-right">{formatCurrency(item.unitPrice)}</td>
+                            <td className="p-4 text-slate-800 text-right font-medium">{formatCurrency(item.total)}</td>
+                            {!budgetToPrint && (
+                              <td className="p-4 text-right print:hidden">
+                                <button 
+                                  onClick={() => handleRemoveBudgetItem(item.id)}
+                                  className="text-red-500 hover:text-red-700 p-1"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-slate-50 print:bg-transparent">
+                        <tr>
+                          <td colSpan={3} className="p-4 text-right font-semibold text-slate-700">Subtotal:</td>
+                          <td className="p-4 text-right font-bold text-slate-900">
+                            {formatCurrency(displayItems.reduce((sum, item) => sum + item.total, 0))}
                           </td>
+                          {!budgetToPrint && <td className="print:hidden"></td>}
                         </tr>
-                      )}
-                      <tr>
-                        <td colSpan={3} className="p-4 text-right font-bold text-slate-900 text-lg">Total Final:</td>
-                        <td className="p-4 text-right font-bold text-teal-700 text-lg">
-                          {formatCurrency(budgetItems.reduce((sum, item) => sum + item.total, 0) - budgetDiscount)}
-                        </td>
-                        <td className="print:hidden"></td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
+                        {!budgetToPrint && (
+                          <tr className="print:hidden">
+                            <td colSpan={3} className="p-4 text-right font-semibold text-slate-700 align-middle">Desconto (R$):</td>
+                            <td className="p-4">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={budgetDiscount}
+                                onChange={(e) => setBudgetDiscount(parseFloat(e.target.value) || 0)}
+                                className="w-full px-3 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none text-right"
+                              />
+                            </td>
+                            <td></td>
+                          </tr>
+                        )}
+                        {displayDiscount > 0 && (
+                          <tr className={budgetToPrint ? "" : "hidden print:table-row"}>
+                            <td colSpan={3} className="p-4 text-right font-semibold text-slate-700">Desconto:</td>
+                            <td className="p-4 text-right font-bold text-red-600">
+                              - {formatCurrency(displayDiscount)}
+                            </td>
+                          </tr>
+                        )}
+                        <tr>
+                          <td colSpan={3} className="p-4 text-right font-bold text-slate-900 text-lg">Total Final:</td>
+                          <td className="p-4 text-right font-bold text-teal-700 text-lg">
+                            {formatCurrency(displayItems.reduce((sum, item) => sum + item.total, 0) - displayDiscount)}
+                          </td>
+                          {!budgetToPrint && <td className="print:hidden"></td>}
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Pagamentos */}
@@ -1001,8 +1036,17 @@ export default function PatientModal({
                               {new Date(budget.date).toLocaleDateString('pt-BR')}
                             </span>
                           </div>
-                          <div className="text-lg font-bold text-blue-600">
-                            {formatCurrency(budget.finalAmount)}
+                          <div className="flex items-center gap-4">
+                            <span className="text-lg font-bold text-blue-600">
+                              {formatCurrency(budget.finalAmount)}
+                            </span>
+                            <button
+                              onClick={() => handlePrintSavedBudget(budget.id)}
+                              className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                              title="Imprimir Orçamento"
+                            >
+                              <Printer className="h-4 w-4" />
+                            </button>
                           </div>
                         </div>
                         <div className="text-sm text-slate-600">
