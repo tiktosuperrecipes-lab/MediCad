@@ -3,6 +3,7 @@ import { Save, User, MapPin, Activity, FileText, CheckCircle2 } from 'lucide-rea
 import { formatCPF, formatPhone, formatCEP } from '../lib/formatters';
 import { savePatient } from '../lib/storage';
 import { Patient } from '../types';
+import { getLocalDateString } from '../lib/dateUtils';
 
 const initialFormState: Omit<Patient, 'id' | 'createdAt'> = {
   fullName: '',
@@ -91,7 +92,7 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
     const newPatient: Patient = {
       ...formData,
       id: initialData?.id || crypto.randomUUID(),
-      createdAt: initialData?.createdAt || new Date().toISOString(),
+      createdAt: initialData?.createdAt || getLocalDateString(),
     };
 
     savePatient(newPatient);

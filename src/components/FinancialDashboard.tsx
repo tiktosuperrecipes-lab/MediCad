@@ -3,14 +3,17 @@ import { Calculator, DollarSign, TrendingUp, TrendingDown, FileText, AlertCircle
 import { Patient } from '../types';
 import { calculateMonthlyIR } from '../lib/taxCalculator';
 import { getSettings } from '../lib/settings';
+import { getLocalDateString, formatDateLong } from '../lib/dateUtils';
 
 interface FinancialDashboardProps {
   patients: Patient[];
 }
 
 export default function FinancialDashboard({ patients }: FinancialDashboardProps) {
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
-  const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
+  const todayStr = getLocalDateString();
+  const [tYear, tMonth] = todayStr.split('-');
+  const [selectedYear, setSelectedYear] = useState(tYear);
+  const [selectedMonth, setSelectedMonth] = useState(tMonth);
   const [deductibleExpenses, setDeductibleExpenses] = useState<number>(0);
   const [printMode, setPrintMode] = useState(false);
   const [selectedPatientForReceipt, setSelectedPatientForReceipt] = useState<string>('');
@@ -57,10 +60,11 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
     { value: '09', label: 'Setembro' },
     { value: '10', label: 'Outubro' },
     { value: '11', label: 'Novembro' },
-    { value: '12', label: 'Dezembro' }
+    { value: '12', label: 'Dezembro' },
   ];
 
-  const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
+  const years = Array.from({ length: 5 }, (_, i) => (Number(tYear) - i).toString());
+
 
   const handlePrintAnnualReceipt = () => {
     if (!selectedPatientForReceipt) {
@@ -295,7 +299,7 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
 
           <div className="flex justify-between items-end mt-24">
             <div className="text-slate-600 text-lg">
-              <p>{settings?.address.split('-')[1]?.trim() || 'Local'}, {new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              <p>{settings?.address.split('-')[1]?.trim() || 'Local'}, {formatDateLong(getLocalDateString())}</p>
             </div>
             <div className="text-center w-80">
               <div className="border-t-2 border-slate-800 pt-4">

@@ -3,6 +3,7 @@ import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Pl
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment } from '../types';
 import { savePatient } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
+import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
 
 export default function PatientModal({ 
   patient, 
@@ -28,7 +29,7 @@ export default function PatientModal({
   // History State
   const [showNewConsultation, setShowNewConsultation] = useState(openNewConsultation);
   const [consultationForm, setConsultationForm] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalDateString(),
     notes: '',
     returnPrediction: 'none'
   });
@@ -100,7 +101,11 @@ export default function PatientModal({
       if (consultationForm.returnPrediction === '15_days') d.setDate(d.getDate() + 15);
       if (consultationForm.returnPrediction === '30_days') d.setDate(d.getDate() + 30);
       if (consultationForm.returnPrediction === '6_months') d.setMonth(d.getMonth() + 6);
-      nextReturn = d.toISOString().split('T')[0];
+      
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      nextReturn = `${year}-${month}-${day}`;
     }
 
     const newConsultation: Consultation = {
@@ -119,7 +124,7 @@ export default function PatientModal({
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
     setShowNewConsultation(false);
-    setConsultationForm({ date: new Date().toISOString().split('T')[0], notes: '', returnPrediction: 'none' });
+    setConsultationForm({ date: getLocalDateString(), notes: '', returnPrediction: 'none' });
   };
 
   const handleAddMedication = () => {
@@ -139,7 +144,7 @@ export default function PatientModal({
     }
     const newPrescription: Prescription = {
       id: crypto.randomUUID(),
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateString(),
       medications
     };
     const updatedPatient = {
@@ -158,7 +163,7 @@ export default function PatientModal({
     }
     const newExam: ExamRequest = {
       id: crypto.randomUUID(),
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateString(),
       requestText: examRequestText
     };
     const updatedPatient = {
@@ -175,7 +180,7 @@ export default function PatientModal({
     
     const newCert: Certificate = {
       id: crypto.randomUUID(),
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateString(),
       days: certificateForm.days,
       cid: certificateForm.cid,
       text
@@ -219,7 +224,7 @@ export default function PatientModal({
 
     const newBudget: Budget = {
       id: crypto.randomUUID(),
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateString(),
       items: budgetItems,
       totalAmount,
       discount: budgetDiscount,
@@ -270,12 +275,12 @@ export default function PatientModal({
 
     const newPayment: Payment = {
       id: crypto.randomUUID(),
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateString(),
       amount: paymentForm.amount,
       method: paymentForm.method,
       notes: paymentForm.notes,
       receiptIssued: paymentForm.receiptIssued,
-      receiptDate: paymentForm.receiptIssued ? new Date().toISOString().split('T')[0] : undefined
+      receiptDate: paymentForm.receiptIssued ? getLocalDateString() : undefined
     };
 
     const updatedPatient = {
@@ -326,7 +331,7 @@ export default function PatientModal({
         </div>
 
         {/* Print Header (Only visible when printing) */}
-        <div className={`hidden ${printMode === 'receipt' ? '' : 'print:block'} border-b-2 border-slate-800 pb-6 mb-8`}>
+        <div className={`hidden ${printMode === 'receipt' ? 'print:hidden' : 'print:block'} border-b-2 border-slate-800 pb-6 mb-8`}>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-slate-900">{settings?.name || 'Clínica Médica'}</h1>
@@ -334,7 +339,7 @@ export default function PatientModal({
               <p className="text-slate-500">Telefone: {settings?.phone || 'Não configurado'}</p>
             </div>
             <div className="text-right text-sm text-slate-500">
-              <p>Data: {new Date().toLocaleDateString('pt-BR')}</p>
+              <p>Data: {formatDateShort(getLocalDateString())}</p>
               <p>Paciente: {patient.fullName}</p>
               <p>CPF: {patient.cpf}</p>
             </div>
@@ -405,7 +410,7 @@ export default function PatientModal({
                 <div>
                   <p className="text-sm text-slate-500 mb-1">Data de Nascimento</p>
                   <p className="font-medium text-slate-900">
-                    {patient.birthDate ? new Date(patient.birthDate).toLocaleDateString('pt-BR') : '-'}
+                    {formatDateShort(patient.birthDate)}
                   </p>
                 </div>
                 <div>
@@ -619,7 +624,7 @@ export default function PatientModal({
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-teal-600 print:text-slate-800" />
                           <span className="font-semibold text-slate-800">
-                            {c.date.split('-').reverse().join('/')}
+                            {formatDateShort(c.date)}
                           </span>
                         </div>
                         {c.returnPrediction !== 'none' && (
@@ -961,7 +966,7 @@ export default function PatientModal({
             </div>
 
             {/* Pagamentos */}
-            <div className={`border-t border-slate-200 pt-8 print:border-none print:pt-0 ${printMode === 'budget' ? 'print:hidden' : ''}`}>
+            <div className={`border-t border-slate-200 pt-8 print:border-none print:pt-0 ${printMode === 'budget' || printMode === 'receipt' ? 'print:hidden' : ''}`}>
               <h3 className="text-lg font-semibold text-slate-800 mb-6 print:hidden">Registrar Pagamento</h3>
               
               {printMode !== 'receipt' && (
@@ -1040,12 +1045,12 @@ export default function PatientModal({
                   <div className="space-y-4">
                     {/* Pagamentos */}
                     {patient.payments?.map((payment) => (
-                      <div key={payment.id} className={`flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-green-500 ${printMode === 'receipt' && printReceiptPaymentId !== payment.id ? 'print:hidden' : ''} ${printMode === 'receipt' ? 'print:border-none print:p-0 print:shadow-none' : ''}`}>
+                      <div key={payment.id} className={`flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-green-500 ${printMode === 'receipt' && printReceiptPaymentId !== payment.id ? 'print:hidden' : ''} ${printMode === 'receipt' && printReceiptPaymentId === payment.id ? 'print:block print:border-none print:p-0 print:shadow-none' : ''}`}>
                         <div className="print:hidden">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-900">Pagamento Recebido</span>
                             <span className="text-sm text-slate-500">
-                              {new Date(payment.date).toLocaleDateString('pt-BR')}
+                              {formatDateShort(payment.date)}
                             </span>
                           </div>
                           <div className="text-sm text-slate-600 mt-1 flex items-center gap-2">
@@ -1060,7 +1065,7 @@ export default function PatientModal({
                               <>
                                 <span>•</span>
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-50 text-teal-700 rounded text-[10px] font-bold uppercase tracking-wider border border-teal-100">
-                                  Recibo Emitido {payment.receiptDate && `(${new Date(payment.receiptDate).toLocaleDateString('pt-BR')})`}
+                                  Recibo Emitido {payment.receiptDate && `(${formatDateShort(payment.receiptDate)})`}
                                 </span>
                               </>
                             )}
@@ -1097,7 +1102,7 @@ export default function PatientModal({
 
                           <div className="flex justify-between items-end mt-16">
                             <div className="text-slate-600">
-                              <p>{settings?.address.split('-')[1]?.trim() || 'Local'}, {new Date(payment.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                              <p>{settings?.address.split('-')[1]?.trim() || 'Local'}, {formatDateLong(payment.date)}</p>
                             </div>
                             <div className="text-center w-64">
                               <div className="border-t border-slate-800 pt-2">
@@ -1122,7 +1127,7 @@ export default function PatientModal({
                                     ...patient,
                                     payments: patient.payments?.map(p => 
                                       p.id === payment.id 
-                                        ? { ...p, receiptIssued: true, receiptDate: new Date().toISOString().split('T')[0] } 
+                                        ? { ...p, receiptIssued: true, receiptDate: getLocalDateString() } 
                                         : p
                                     )
                                   };
@@ -1156,7 +1161,7 @@ export default function PatientModal({
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-900">Orçamento Gerado</span>
                             <span className="text-sm text-slate-500">
-                              {new Date(budget.date).toLocaleDateString('pt-BR')}
+                              {formatDateShort(budget.date)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1202,7 +1207,7 @@ export default function PatientModal({
           </div>
 
           {/* Print Footer */}
-          <div className={`hidden ${printMode === 'receipt' ? '' : 'print:block'} mt-32 pt-8 text-center`}>
+          <div className={`hidden ${printMode === 'receipt' ? 'print:hidden' : 'print:block'} mt-32 pt-8 text-center`}>
             <div className="w-80 mx-auto border-b border-slate-800 mb-2"></div>
             <p className="text-base text-slate-800 font-medium">{settings?.doctorName || 'Assinatura do(a) Profissional'}</p>
             <p className="text-sm text-slate-600">{settings?.crm || 'CRM/CRO'}</p>

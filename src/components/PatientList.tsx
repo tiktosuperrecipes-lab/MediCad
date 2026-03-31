@@ -4,6 +4,7 @@ import { Patient } from '../types';
 import { getPatients, deletePatient } from '../lib/storage';
 import PatientModal from './PatientModal';
 import ReturnAlerts from './ReturnAlerts';
+import { formatDateShort } from '../lib/dateUtils';
 
 export default function PatientList({ 
   onEdit, 
@@ -31,7 +32,8 @@ export default function PatientList({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `medicad-backup-${new Date().toISOString().split('T')[0]}.json`;
+    const dateStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+    a.download = `medicad-backup-${dateStr}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -193,7 +195,7 @@ export default function PatientList({
                   {patient.birthDate && (
                     <div className="flex items-center text-sm text-slate-600">
                       <Calendar className="h-4 w-4 mr-2 text-slate-400" />
-                      {new Date(patient.birthDate).toLocaleDateString('pt-BR')}
+                      {formatDateShort(patient.birthDate)}
                     </div>
                   )}
                   {patient.consultations && patient.consultations.length > 0 && (
@@ -205,7 +207,7 @@ export default function PatientList({
                   {patient.nextReturn && (
                     <div className="flex items-center text-sm text-amber-700 mt-1 bg-amber-50 px-2 py-1 rounded-md w-fit border border-amber-100">
                       <Calendar className="h-4 w-4 mr-2 text-amber-600" />
-                      <span className="font-medium">Retorno: {new Date(patient.nextReturn + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                      <span className="font-medium">Retorno: {formatDateShort(patient.nextReturn)}</span>
                     </div>
                   )}
                 </div>

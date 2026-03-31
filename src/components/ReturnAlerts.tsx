@@ -1,10 +1,14 @@
 import React from 'react';
 import { Bell, MessageCircle, Calendar } from 'lucide-react';
 import { Patient } from '../types';
+import { getLocalDateString } from '../lib/dateUtils';
 
 export default function ReturnAlerts({ patients }: { patients: Patient[] }) {
-  const today = new Date();
+  const todayStr = getLocalDateString();
+  const [tYear, tMonth, tDay] = todayStr.split('-');
+  const today = new Date(Number(tYear), Number(tMonth) - 1, Number(tDay));
   today.setHours(0, 0, 0, 0);
+  
   const nextWeek = new Date(today);
   nextWeek.setDate(today.getDate() + 7);
 
