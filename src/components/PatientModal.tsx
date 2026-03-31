@@ -326,7 +326,7 @@ export default function PatientModal({
         </div>
 
         {/* Print Header (Only visible when printing) */}
-        <div className="hidden print:block border-b-2 border-slate-800 pb-6 mb-8">
+        <div className={`hidden ${printMode === 'receipt' ? '' : 'print:block'} border-b-2 border-slate-800 pb-6 mb-8`}>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-slate-900">{settings?.name || 'Clínica Médica'}</h1>
@@ -964,67 +964,69 @@ export default function PatientModal({
             <div className={`border-t border-slate-200 pt-8 print:border-none print:pt-0 ${printMode === 'budget' ? 'print:hidden' : ''}`}>
               <h3 className="text-lg font-semibold text-slate-800 mb-6 print:hidden">Registrar Pagamento</h3>
               
-              <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-8">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                  <div className="md:col-span-3">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor (R$)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={paymentForm.amount}
-                      onChange={(e) => setPaymentForm({...paymentForm, amount: parseFloat(e.target.value) || 0})}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                    />
-                  </div>
-                  <div className="md:col-span-3">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Forma de Pagamento</label>
-                    <select
-                      value={paymentForm.method}
-                      onChange={(e) => setPaymentForm({...paymentForm, method: e.target.value as Payment['method']})}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white"
-                    >
-                      <option value="pix">PIX</option>
-                      <option value="credit">Cartão de Crédito</option>
-                      <option value="debit">Cartão de Débito</option>
-                      <option value="cash">Dinheiro</option>
-                      <option value="transfer">Transferência</option>
-                    </select>
-                  </div>
-                  <div className="md:col-span-4">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Observações (Opcional)</label>
-                    <input
-                      type="text"
-                      value={paymentForm.notes}
-                      onChange={(e) => setPaymentForm({...paymentForm, notes: e.target.value})}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                      placeholder="Ex: Parcela 1/3"
-                    />
-                  </div>
-                  <div className="md:col-span-2 flex items-end pb-2">
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                      <div className="relative flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={paymentForm.receiptIssued}
-                          onChange={(e) => setPaymentForm({...paymentForm, receiptIssued: e.target.checked})}
-                          className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-slate-300 bg-white transition-all checked:bg-teal-600 checked:border-teal-600 focus:outline-none"
-                        />
-                        <svg className="absolute h-3.5 w-3.5 pointer-events-none hidden peer-checked:block text-white left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                      </div>
-                      <span className="text-sm font-medium text-slate-700 group-hover:text-teal-600 transition-colors">Recibo solicitado?</span>
-                    </label>
-                  </div>
-                  <div className="md:col-span-2">
-                    <button 
-                      onClick={handleSavePayment}
-                      className="w-full px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors h-[42px]"
-                    >
-                      Registrar
-                    </button>
+              {printMode !== 'receipt' && (
+                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-8 print:hidden">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                    <div className="md:col-span-3">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Valor (R$)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={paymentForm.amount}
+                        onChange={(e) => setPaymentForm({...paymentForm, amount: parseFloat(e.target.value) || 0})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                      />
+                    </div>
+                    <div className="md:col-span-3">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Forma de Pagamento</label>
+                      <select
+                        value={paymentForm.method}
+                        onChange={(e) => setPaymentForm({...paymentForm, method: e.target.value as Payment['method']})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white"
+                      >
+                        <option value="pix">PIX</option>
+                        <option value="credit">Cartão de Crédito</option>
+                        <option value="debit">Cartão de Débito</option>
+                        <option value="cash">Dinheiro</option>
+                        <option value="transfer">Transferência</option>
+                      </select>
+                    </div>
+                    <div className="md:col-span-4">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Observações (Opcional)</label>
+                      <input
+                        type="text"
+                        value={paymentForm.notes}
+                        onChange={(e) => setPaymentForm({...paymentForm, notes: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                        placeholder="Ex: Parcela 1/3"
+                      />
+                    </div>
+                    <div className="md:col-span-2 flex items-end pb-2">
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <div className="relative flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={paymentForm.receiptIssued}
+                            onChange={(e) => setPaymentForm({...paymentForm, receiptIssued: e.target.checked})}
+                            className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-slate-300 bg-white transition-all checked:bg-teal-600 checked:border-teal-600 focus:outline-none"
+                          />
+                          <svg className="absolute h-3.5 w-3.5 pointer-events-none hidden peer-checked:block text-white left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <span className="text-sm font-medium text-slate-700 group-hover:text-teal-600 transition-colors">Recibo solicitado?</span>
+                      </label>
+                    </div>
+                    <div className="md:col-span-2">
+                      <button 
+                        onClick={handleSavePayment}
+                        className="w-full px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors h-[42px]"
+                      >
+                        Registrar
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Histórico Financeiro */}
               <div className={`space-y-6 ${printMode === 'receipt' ? 'print:mt-0' : ''}`}>
@@ -1038,7 +1040,7 @@ export default function PatientModal({
                   <div className="space-y-4">
                     {/* Pagamentos */}
                     {patient.payments?.map((payment) => (
-                      <div key={payment.id} className={`flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-green-500 ${printMode === 'receipt' && printReceiptPaymentId !== payment.id ? 'print:hidden' : ''}`}>
+                      <div key={payment.id} className={`flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-green-500 ${printMode === 'receipt' && printReceiptPaymentId !== payment.id ? 'print:hidden' : ''} ${printMode === 'receipt' ? 'print:border-none print:p-0 print:shadow-none' : ''}`}>
                         <div className="print:hidden">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-900">Pagamento Recebido</span>
@@ -1200,7 +1202,7 @@ export default function PatientModal({
           </div>
 
           {/* Print Footer */}
-          <div className="hidden print:block mt-32 pt-8 text-center">
+          <div className={`hidden ${printMode === 'receipt' ? '' : 'print:block'} mt-32 pt-8 text-center`}>
             <div className="w-80 mx-auto border-b border-slate-800 mb-2"></div>
             <p className="text-base text-slate-800 font-medium">{settings?.doctorName || 'Assinatura do(a) Profissional'}</p>
             <p className="text-sm text-slate-600">{settings?.crm || 'CRM/CRO'}</p>
