@@ -1,1 +1,10 @@
 @import "tailwindcss";
+
+@media print {
+  @page {
+    margin: 0; /* Remove browser default headers and footers */
+  }
+  body {
+    margin: 1.5cm; /* Add margin back so content isn't cut off */
+  }
+}
