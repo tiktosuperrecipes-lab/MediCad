@@ -331,7 +331,7 @@ export default function PatientModal({
         </div>
 
         {/* Print Header (Only visible when printing) */}
-        <div className={`hidden ${printMode === 'receipt' ? 'print:hidden' : 'print:block'} border-b-2 border-slate-800 pb-6 mb-8`}>
+        <div className="hidden print:block border-b-2 border-slate-800 pb-6 mb-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-slate-900">{settings?.name || 'Clínica Médica'}</h1>
@@ -966,7 +966,7 @@ export default function PatientModal({
             </div>
 
             {/* Pagamentos */}
-            <div className={`border-t border-slate-200 pt-8 print:border-none print:pt-0 ${printMode === 'budget' || printMode === 'receipt' ? 'print:hidden' : ''}`}>
+            <div className={`border-t border-slate-200 pt-8 print:border-none print:pt-0 ${printMode === 'budget' ? 'print:hidden' : ''}`}>
               <h3 className="text-lg font-semibold text-slate-800 mb-6 print:hidden">Registrar Pagamento</h3>
               
               {printMode !== 'receipt' && (
