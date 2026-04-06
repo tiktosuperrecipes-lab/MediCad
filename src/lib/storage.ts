@@ -1,3 +1,5 @@
+import { collection, addDoc, doc, setDoc } from 'firebase/firestore';
+import { db } from './firebase';
 import { Patient } from '../types';
 
 const STORAGE_KEY = '@medicad:patients';
@@ -7,17 +9,28 @@ export function getPatients(): Patient[] {
   return data ? JSON.parse(data) : [];
 }
 
-export function savePatient(patient: Patient): void {
-  const patients = getPatients();
-  const index = patients.findIndex(p => p.id === patient.id);
-  
-  if (index >= 0) {
-    patients[index] = patient;
-  } else {
-    patients.push(patient);
+export async function savePatient(patient: Patient): Promise<void> {
+  try {
+    // Mantendo o salvamento local temporariamente para não quebrar o app
+    const patients = getPatients();
+    const index = patients.findIndex(p => p.id === patient.id);
+    
+    if (index >= 0) {
+      patients[index] = patient;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
+      
+      // Atualiza no Firestore (usando setDoc para manter o ID existente)
+      await setDoc(doc(db, 'pacientes', patient.id), patient);
+    } else {
+      patients.push(patient);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
+      
+      // Salva no Firestore usando addDoc conforme solicitado
+      await addDoc(collection(db, 'pacientes'), patient);
+    }
+  } catch (error) {
+    console.error("Erro detalhado ao salvar paciente no Firestore:", error);
   }
-  
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
 }
 
 export function deletePatient(id: string): void {

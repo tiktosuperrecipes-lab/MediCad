@@ -86,7 +86,7 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const newPatient: Patient = {
@@ -95,7 +95,7 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
       createdAt: initialData?.createdAt || getLocalDateString(),
     };
 
-    savePatient(newPatient);
+    await savePatient(newPatient);
     
     setShowSuccess(true);
     setTimeout(() => {
