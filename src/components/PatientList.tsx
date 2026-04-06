@@ -19,9 +19,9 @@ export default function PatientList({
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     if (window.confirm(`Tem certeza que deseja excluir o paciente ${name}? Esta ação não pode ser desfeita.`)) {
-      deletePatient(id);
+      await deletePatient(id);
       onRefresh();
     }
   };
@@ -45,12 +45,12 @@ export default function PatientList({
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const importedData = JSON.parse(event.target?.result as string);
         if (Array.isArray(importedData)) {
           // Merge imported data with existing data
-          const existingPatients = getPatients();
+          const existingPatients = await getPatients();
           const mergedPatients = [...existingPatients];
           
           let added = 0;

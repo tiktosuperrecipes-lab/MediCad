@@ -13,11 +13,12 @@ export default function App() {
   const [patients, setPatients] = useState<Patient[]>([]);
 
   useEffect(() => {
-    setPatients(getPatients());
+    refreshPatients();
   }, []);
 
-  const refreshPatients = () => {
-    setPatients(getPatients());
+  const refreshPatients = async () => {
+    const data = await getPatients();
+    setPatients(data);
   };
 
   const handleTabChange = (tab: 'form' | 'list' | 'settings' | 'financial') => {
