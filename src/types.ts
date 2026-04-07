@@ -55,6 +55,7 @@ export interface Payment {
   amount: number;
   method: 'pix' | 'credit' | 'debit' | 'cash' | 'transfer';
   notes?: string;
+  status?: 'Pendente' | 'Pago';
   receiptIssued?: boolean;
   receiptDate?: string;
 }

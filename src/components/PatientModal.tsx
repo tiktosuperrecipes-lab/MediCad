@@ -129,6 +129,7 @@ export default function PatientModal({
                   method.toLowerCase().includes('cartão') ? 'credit' : 
                   method.toLowerCase().includes('dinheiro') ? 'cash' : 'transfer',
           notes: `Evolução: ${procedure}`,
+          status: 'Pendente',
           receiptIssued: false,
           recordType: 'payment'
         };
@@ -316,6 +317,7 @@ export default function PatientModal({
       amount: paymentForm.amount,
       method: paymentForm.method,
       notes: paymentForm.notes,
+      status: 'Pendente',
       receiptIssued: paymentForm.receiptIssued,
       receiptDate: paymentForm.receiptIssued ? getLocalDateString() : undefined,
       recordType: 'payment'

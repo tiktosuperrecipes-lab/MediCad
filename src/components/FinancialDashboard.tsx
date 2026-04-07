@@ -78,11 +78,11 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             amount: record.amount,
             method: record.method,
             procedure: record.notes || 'Pagamento registrado no prontuário',
-            status: record.receiptIssued ? 'Pago' : 'Pendente',
+            status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
             receiptIssued: record.receiptIssued || false
           };
           
-          if (record.receiptIssued) {
+          if (unifiedRecord.status === 'Pago') {
             if (!receivedMap.has(record.id)) receivedMap.set(record.id, unifiedRecord);
           } else {
             if (!pendingMap.has(record.id)) pendingMap.set(record.id, unifiedRecord);
@@ -322,7 +322,7 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
                   Contas a Receber
                 </h3>
                 <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-full">
-                  {globalRecords.filter(r => r.status === 'Pendente' && r.date.startsWith(`${selectedYear}-${selectedMonth}`)).length}
+                  {unifiedPendingRecords.length}
                 </span>
               </div>
               <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">

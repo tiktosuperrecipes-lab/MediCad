@@ -280,9 +280,7 @@ export async function updateGlobalFinancialRecordStatus(id: string, status: 'Pen
           if (item.id === id) {
             return { 
               ...item, 
-              // Não força mais o recibo ao dar baixa, apenas atualiza o status se necessário
-              // No prontuário do paciente, o status é implícito pelo recordType e receiptIssued
-              // mas podemos manter a sincronia se houver um campo status lá (não há no tipo Payment)
+              status: status // Sincroniza o status no prontuário do paciente
             };
           }
           return item;
@@ -298,35 +296,70 @@ export async function updateGlobalFinancialRecordStatus(id: string, status: 'Pen
 
 export async function updateGlobalFinancialRecordReceipt(id: string, receiptIssued: boolean): Promise<void> {
   try {
-    const { getDoc } = await import('firebase/firestore');
+    const { getDoc, setDoc } = await import('firebase/firestore');
     const recordRef = doc(db, 'financeiro_geral', id);
     const recordSnap = await getDoc(recordRef);
     
-    if (!recordSnap.exists()) throw new Error("Registro global não encontrado");
+    let patientId = '';
     
-    const recordData = recordSnap.data() as GlobalFinancialRecord;
-    await updateDoc(recordRef, { receiptIssued });
+    if (recordSnap.exists()) {
+      const recordData = recordSnap.data() as GlobalFinancialRecord;
+      patientId = recordData.patientId;
+      await updateDoc(recordRef, { receiptIssued });
+    } else {
+      // Se não existir no global, tentamos encontrar no prontuário do paciente primeiro
+      // para obter os dados necessários para criar o registro global
+      console.warn("Registro global não encontrado para ID:", id, ". Tentando sincronizar do paciente.");
+    }
 
-    // Sincroniza com o prontuário do paciente
-    const patientId = recordData.patientId;
-    const patientRef = doc(db, 'pacientes', patientId);
-    const patientSnap = await getDoc(patientRef);
-
-    if (patientSnap.exists()) {
-      const patientData = patientSnap.data() as Patient;
-      if (patientData.financeiro) {
-        const updatedFinanceiro = patientData.financeiro.map((item: any) => {
-          if (item.id === id) {
-            return { 
-              ...item, 
-              receiptIssued,
-              receiptDate: receiptIssued ? getLocalDateString() : undefined
-            };
-          }
-          return item;
-        });
-        await updateDoc(patientRef, { financeiro: updatedFinanceiro });
+    // Sincroniza com o prontuário do paciente (ou busca o paciente se não tivermos o ID)
+    if (!patientId) {
+      const patients = await getDocs(collection(db, 'pacientes'));
+      for (const pDoc of patients.docs) {
+        const pData = pDoc.data() as Patient;
+        const found = pData.financeiro?.find((f: any) => f.id === id);
+        if (found && (found as any).recordType === 'payment') {
+          const payment = found as any;
+          patientId = pDoc.id;
+          // Se não existia no global, criamos agora
+          await setDoc(recordRef, {
+            patientId: patientId,
+            patientName: pData.fullName,
+            date: payment.date,
+            amount: payment.amount,
+            method: payment.method,
+            procedure: payment.notes || 'Pagamento sincronizado',
+            status: payment.status || 'Pago',
+            receiptIssued,
+            createdAt: new Date().toISOString()
+          });
+          break;
+        }
       }
+    }
+
+    if (patientId) {
+      const patientRef = doc(db, 'pacientes', patientId);
+      const patientSnap = await getDoc(patientRef);
+
+      if (patientSnap.exists()) {
+        const patientData = patientSnap.data() as Patient;
+        if (patientData.financeiro) {
+          const updatedFinanceiro = patientData.financeiro.map((item: any) => {
+            if (item.id === id) {
+              return { 
+                ...item, 
+                receiptIssued,
+                receiptDate: receiptIssued ? getLocalDateString() : undefined
+              };
+            }
+            return item;
+          });
+          await updateDoc(patientRef, { financeiro: updatedFinanceiro });
+        }
+      }
+    } else {
+      throw new Error("Registro não encontrado em nenhuma coleção.");
     }
   } catch (error) {
     console.error("Erro ao atualizar recibo do registro financeiro:", error);
