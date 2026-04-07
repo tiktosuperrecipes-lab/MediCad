@@ -1,8 +1,54 @@
-import { collection, addDoc, doc, updateDoc, deleteDoc, getDocs, arrayUnion } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, getDocs, arrayUnion, query, where } from 'firebase/firestore';
 import { db } from './firebase';
-import { Patient } from '../types';
+import { Patient, Appointment } from '../types';
 
 const STORAGE_KEY = '@medicad:patients';
+
+export async function getAppointments(date: string): Promise<Appointment[]> {
+  try {
+    const q = query(collection(db, 'agenda'), where('date', '==', date));
+    const querySnapshot = await getDocs(q);
+    const appointments: Appointment[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      appointments.push({
+        ...doc.data() as Appointment,
+        id: doc.id
+      });
+    });
+    
+    return appointments;
+  } catch (error) {
+    console.error("Erro ao buscar agenda no Firestore:", error);
+    return [];
+  }
+}
+
+export async function saveAppointment(appointment: Omit<Appointment, 'id'> | Appointment): Promise<void> {
+  try {
+    const cleanAppointment = JSON.parse(JSON.stringify(appointment));
+    
+    if ('id' in cleanAppointment && cleanAppointment.id) {
+      const { id, ...appointmentData } = cleanAppointment;
+      const appointmentRef = doc(db, 'agenda', id);
+      await updateDoc(appointmentRef, appointmentData);
+    } else {
+      await addDoc(collection(db, 'agenda'), cleanAppointment);
+    }
+  } catch (error) {
+    console.error("Erro ao salvar agendamento no Firestore:", error);
+    throw error;
+  }
+}
+
+export async function deleteAppointment(id: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, 'agenda', id));
+  } catch (error) {
+    console.error("Erro ao excluir agendamento no Firestore:", error);
+    throw error;
+  }
+}
 
 export async function getPatients(): Promise<Patient[]> {
   try {

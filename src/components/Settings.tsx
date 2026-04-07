@@ -13,7 +13,9 @@ export default function Settings({ onSave }: SettingsProps) {
     phone: '',
     doctorName: '',
     crm: '',
-    cpf: ''
+    cpf: '',
+    agendaStartTime: '08:00',
+    agendaEndTime: '18:00'
   });
   const [saved, setSaved] = useState(false);
 
@@ -82,6 +84,32 @@ export default function Settings({ onSave }: SettingsProps) {
                   placeholder="Ex: (11) 99999-9999"
                   required
                 />
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 pt-6 mt-2">
+              <h3 className="text-sm font-semibold text-slate-800 mb-4">Configurações da Agenda</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Horário de Início</label>
+                  <input
+                    type="time"
+                    value={settings.agendaStartTime || '08:00'}
+                    onChange={(e) => setSettings({...settings, agendaStartTime: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Horário de Término</label>
+                  <input
+                    type="time"
+                    value={settings.agendaEndTime || '18:00'}
+                    onChange={(e) => setSettings({...settings, agendaEndTime: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    required
+                  />
+                </div>
               </div>
             </div>
 

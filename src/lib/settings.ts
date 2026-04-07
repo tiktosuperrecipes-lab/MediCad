@@ -8,6 +8,8 @@ export interface ClinicSettings {
   doctorName: string;
   crm: string;
   cpf?: string;
+  agendaStartTime?: string;
+  agendaEndTime?: string;
 }
 
 const DEFAULT_SETTINGS: ClinicSettings = {
@@ -16,7 +18,9 @@ const DEFAULT_SETTINGS: ClinicSettings = {
   phone: '(00) 0000-0000',
   doctorName: 'Dr(a). Nome do Médico',
   crm: 'CRM 00000-UF',
-  cpf: ''
+  cpf: '',
+  agendaStartTime: '08:00',
+  agendaEndTime: '18:00'
 };
 
 const SETTINGS_DOC_ID = 'clinica_principal';

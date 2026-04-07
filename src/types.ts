@@ -59,6 +59,15 @@ export interface Payment {
   receiptDate?: string;
 }
 
+export interface Appointment {
+  id: string;
+  patientId: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  procedure: string;
+  status: 'Agendado' | 'Confirmado' | 'Finalizado';
+}
+
 export interface Patient {
   id: string;
   // Personal
