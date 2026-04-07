@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2 } from 'lucide-react';
+import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2 } from 'lucide-react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment } from '../types';
-import { savePatient, addClinicalEvolution, addFinancialRecord } from '../lib/storage';
+import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
+import { compressImage } from '../lib/imageUtils';
 
 export default function PatientModal({ 
   patient, 
@@ -60,6 +61,11 @@ export default function PatientModal({
   const [printBudgetId, setPrintBudgetId] = useState<string | null>(null);
   const [printReceiptPaymentId, setPrintReceiptPaymentId] = useState<string | null>(null);
   
+  // Photo Gallery State
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const [paymentForm, setPaymentForm] = useState({
     amount: 0,
     method: 'pix' as Payment['method'],
@@ -311,6 +317,49 @@ export default function PatientModal({
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const base64Image = await compressImage(file);
+      await addPatientPhoto(patient.id, base64Image);
+      
+      const updatedPatient = {
+        ...patient,
+        fotos: [...(patient.fotos || []), base64Image]
+      };
+      onUpdate(updatedPatient);
+      alert('Foto salva com sucesso!');
+    } catch (error) {
+      console.error("Erro ao processar foto:", error);
+      alert('Erro ao salvar a foto. Tente novamente.');
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeletePhoto = async (base64Image: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta foto?')) return;
+
+    try {
+      await removePatientPhoto(patient.id, base64Image);
+      const updatedPatient = {
+        ...patient,
+        fotos: patient.fotos?.filter(f => f !== base64Image)
+      };
+      onUpdate(updatedPatient);
+      setViewingPhoto(null);
+    } catch (error) {
+      console.error("Erro ao excluir foto:", error);
+      alert('Erro ao excluir a foto.');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm print:static print:p-0 print:bg-white print:block">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible flex flex-col">
@@ -366,7 +415,7 @@ export default function PatientModal({
               className={`py-4 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
               <Activity className="h-4 w-4" />
-              Evolução
+              Evolução e Fotos
             </button>
             <button 
               onClick={() => setActiveTab('prescriptions')}
@@ -660,6 +709,65 @@ export default function PatientModal({
                     Nenhuma evolução registrada.
                   </div>
                 )
+              )}
+            </div>
+
+            {/* Galeria de Fotos */}
+            <div className={`mt-12 pt-8 border-t border-slate-200 print:hidden ${printMode !== 'history' ? 'print:hidden' : ''}`}>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-teal-600" />
+                  Galeria de Fotos
+                </h3>
+                <div>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    ref={fileInputRef}
+                    onChange={handlePhotoUpload}
+                  />
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingPhoto}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {isUploadingPhoto ? (
+                      <span className="animate-pulse">Processando...</span>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4" />
+                        Adicionar Foto
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {patient.fotos && patient.fotos.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {patient.fotos.map((foto, idx) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => setViewingPhoto(foto)}
+                      className="aspect-square rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative bg-slate-100"
+                    >
+                      <img 
+                        src={foto} 
+                        alt={`Foto ${idx + 1}`} 
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
+                        <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 drop-shadow-md" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <ImageIcon className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-500">Nenhuma foto adicionada ao prontuário.</p>
+                </div>
               )}
             </div>
           </div>
@@ -1332,6 +1440,35 @@ export default function PatientModal({
 
         </div>
       </div>
+
+      {/* Photo Viewer Modal */}
+      {viewingPhoto && (
+        <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="relative max-w-5xl w-full max-h-[95vh] flex flex-col items-center">
+            <div className="absolute top-0 right-0 flex items-center gap-4 p-4 z-10">
+              <button 
+                onClick={() => handleDeletePhoto(viewingPhoto)}
+                className="p-2 bg-rose-600/80 hover:bg-rose-600 text-white rounded-full transition-colors backdrop-blur-md"
+                title="Excluir foto"
+              >
+                <Trash2 className="h-5 w-5" />
+              </button>
+              <button 
+                onClick={() => setViewingPhoto(null)}
+                className="p-2 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full transition-colors backdrop-blur-md"
+                title="Fechar"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <img 
+              src={viewingPhoto} 
+              alt="Visualização Clínica" 
+              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { collection, addDoc, doc, updateDoc, deleteDoc, getDocs, arrayUnion, query, where } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, getDocs, arrayUnion, arrayRemove, query, where } from 'firebase/firestore';
 import { db } from './firebase';
 import { Patient, Appointment } from '../types';
 
@@ -155,6 +155,30 @@ export async function addFinancialRecord(patientId: string, record: any): Promis
     });
   } catch (error) {
     console.error("Erro ao adicionar registro financeiro:", error);
+    throw error;
+  }
+}
+
+export async function addPatientPhoto(patientId: string, base64Image: string): Promise<void> {
+  try {
+    const patientRef = doc(db, 'pacientes', patientId);
+    await updateDoc(patientRef, {
+      fotos: arrayUnion(base64Image)
+    });
+  } catch (error) {
+    console.error("Erro ao salvar foto do paciente:", error);
+    throw error;
+  }
+}
+
+export async function removePatientPhoto(patientId: string, base64Image: string): Promise<void> {
+  try {
+    const patientRef = doc(db, 'pacientes', patientId);
+    await updateDoc(patientRef, {
+      fotos: arrayRemove(base64Image)
+    });
+  } catch (error) {
+    console.error("Erro ao remover foto do paciente:", error);
     throw error;
   }
 }

@@ -98,6 +98,7 @@ export interface Patient {
   // CRM & Prontuário
   consultations?: Consultation[];
   historico_clinico?: string[];
+  fotos?: string[];
   nextReturn?: string;
 
   // Anamnese Base
