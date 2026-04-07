@@ -24,42 +24,48 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
   }, []);
 
   // Calculate total income for the selected month/year
-  const monthlyIncome = useMemo(() => {
+  const { monthlyIncome, monthlyDeclaredIncome } = useMemo(() => {
     let total = 0;
+    let declared = 0;
     patients.forEach(patient => {
       patient.payments?.forEach(payment => {
         if (payment.date.startsWith(`${selectedYear}-${selectedMonth}`)) {
           total += payment.amount;
+          if (payment.receiptIssued) declared += payment.amount;
         }
       });
       patient.financeiro?.forEach((record: any) => {
         if (record.recordType === 'payment' && record.date.startsWith(`${selectedYear}-${selectedMonth}`)) {
           total += record.amount;
+          if (record.receiptIssued) declared += record.amount;
         }
       });
     });
-    return total;
+    return { monthlyIncome: total, monthlyDeclaredIncome: declared };
   }, [patients, selectedYear, selectedMonth]);
 
   // Calculate annual income for the selected year
-  const annualIncome = useMemo(() => {
+  const { annualIncome, annualDeclaredIncome } = useMemo(() => {
     let total = 0;
+    let declared = 0;
     patients.forEach(patient => {
       patient.payments?.forEach(payment => {
         if (payment.date.startsWith(selectedYear)) {
           total += payment.amount;
+          if (payment.receiptIssued) declared += payment.amount;
         }
       });
       patient.financeiro?.forEach((record: any) => {
         if (record.recordType === 'payment' && record.date.startsWith(selectedYear)) {
           total += record.amount;
+          if (record.receiptIssued) declared += record.amount;
         }
       });
     });
-    return total;
+    return { annualIncome: total, annualDeclaredIncome: declared };
   }, [patients, selectedYear]);
 
-  const taxCalc = calculateMonthlyIR(monthlyIncome, deductibleExpenses);
+  const taxCalc = calculateMonthlyIR(monthlyDeclaredIncome, deductibleExpenses);
 
   const months = [
     { value: '01', label: 'Janeiro' },
@@ -99,14 +105,14 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
     
     // Old payments
     patientForReceipt.payments?.forEach(p => {
-      if (p.date.startsWith(selectedYear)) {
+      if (p.date.startsWith(selectedYear) && p.receiptIssued) {
         total += p.amount;
       }
     });
     
     // New financeiro records
     patientForReceipt.financeiro?.forEach((record: any) => {
-      if (record.recordType === 'payment' && record.date.startsWith(selectedYear)) {
+      if (record.recordType === 'payment' && record.date.startsWith(selectedYear) && record.receiptIssued) {
         total += record.amount;
       }
     });
@@ -151,10 +157,15 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             </div>
             <h3 className="font-semibold text-slate-700">Receita Mensal</h3>
           </div>
-          <p className="text-3xl font-bold text-slate-900">
+          <p className="text-2xl font-bold text-slate-900">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(monthlyIncome)}
           </p>
-          <p className="text-sm text-slate-500 mt-1">Total recebido no mês</p>
+          <div className="mt-2 pt-2 border-t border-slate-100">
+            <p className="text-sm font-medium text-teal-700">
+              Declarado: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(monthlyDeclaredIncome)}
+            </p>
+            <p className="text-xs text-slate-500">Base para o Carnê-Leão</p>
+          </div>
         </div>
 
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -179,10 +190,15 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             </div>
             <h3 className="font-semibold text-slate-700">Receita Anual ({selectedYear})</h3>
           </div>
-          <p className="text-3xl font-bold text-slate-900">
+          <p className="text-2xl font-bold text-slate-900">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(annualIncome)}
           </p>
-          <p className="text-sm text-slate-500 mt-1">Total recebido no ano</p>
+          <div className="mt-2 pt-2 border-t border-slate-100">
+            <p className="text-sm font-medium text-blue-700">
+              Declarado: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(annualDeclaredIncome)}
+            </p>
+            <p className="text-xs text-slate-500">Total com recibo no ano</p>
+          </div>
         </div>
       </div>
 
@@ -233,7 +249,7 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             <h4 className="font-medium text-slate-800 mb-4">Resumo do Cálculo</h4>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-600">Rendimento Bruto:</span>
+                <span className="text-slate-600">Rendimento Declarado (Com Recibo):</span>
                 <span className="font-medium">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(taxCalc.grossIncome)}</span>
               </div>
               <div className="flex justify-between text-rose-600">
@@ -284,8 +300,8 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             >
               <option value="">-- Selecione --</option>
               {patients.filter(p => 
-                (p.payments && p.payments.some(pay => pay.date.startsWith(selectedYear))) ||
-                (p.financeiro && p.financeiro.some((record: any) => record.recordType === 'payment' && record.date.startsWith(selectedYear)))
+                (p.payments && p.payments.some(pay => pay.date.startsWith(selectedYear) && pay.receiptIssued)) ||
+                (p.financeiro && p.financeiro.some((record: any) => record.recordType === 'payment' && record.date.startsWith(selectedYear) && record.receiptIssued))
               ).map(p => (
                 <option key={p.id} value={p.id}>{p.fullName} (CPF: {p.cpf || 'Não informado'})</option>
               ))}

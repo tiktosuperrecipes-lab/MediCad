@@ -1034,8 +1034,9 @@ export default function PatientModal({
                           />
                           <svg className="absolute h-3.5 w-3.5 pointer-events-none hidden peer-checked:block text-white left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                         </div>
-                        <span className="text-sm font-medium text-slate-700 group-hover:text-teal-600 transition-colors">Recibo solicitado?</span>
+                        <span className="text-sm font-medium text-slate-700 group-hover:text-teal-600 transition-colors">Declarar no IR (Recibo)?</span>
                       </label>
+                      <p className="text-[10px] text-slate-400 mt-0.5 ml-7">Afeta o cálculo do Carnê-Leão</p>
                     </div>
                     <div className="md:col-span-2">
                       <button 

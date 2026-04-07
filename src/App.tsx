@@ -5,7 +5,6 @@ import PatientList from './components/PatientList';
 import Settings from './components/Settings';
 import FinancialDashboard from './components/FinancialDashboard';
 import Login from './components/Login';
-import ErrorBoundary from './components/ErrorBoundary';
 import { Patient } from './types';
 import { getPatients } from './lib/storage';
 import { getSettings, ClinicSettings } from './lib/settings';
@@ -60,8 +59,7 @@ export default function App() {
   };
 
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Header */}
       <header className="bg-teal-700 text-white shadow-md print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -156,6 +154,5 @@ export default function App() {
         )}
       </main>
     </div>
-    </ErrorBoundary>
   );
 }
