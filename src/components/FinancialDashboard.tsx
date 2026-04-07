@@ -4,6 +4,7 @@ import { Patient } from '../types';
 import { calculateMonthlyIR } from '../lib/taxCalculator';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateLong } from '../lib/dateUtils';
+import { savePatient } from '../lib/storage';
 
 interface FinancialDashboardProps {
   patients: Patient[];
@@ -98,27 +99,60 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
   };
 
   const patientForReceipt = patients.find(p => p.id === selectedPatientForReceipt);
-  const patientAnnualTotal = useMemo(() => {
-    if (!patientForReceipt) return 0;
+  
+  const { patientAnnualTotal, patientAnnualUndeclared } = useMemo(() => {
+    if (!patientForReceipt) return { patientAnnualTotal: 0, patientAnnualUndeclared: 0 };
     
-    let total = 0;
+    let declared = 0;
+    let undeclared = 0;
     
     // Old payments
     patientForReceipt.payments?.forEach(p => {
-      if (p.date.startsWith(selectedYear) && p.receiptIssued) {
-        total += p.amount;
+      if (p.date.startsWith(selectedYear)) {
+        if (p.receiptIssued) declared += p.amount;
+        else undeclared += p.amount;
       }
     });
     
     // New financeiro records
     patientForReceipt.financeiro?.forEach((record: any) => {
-      if (record.recordType === 'payment' && record.date.startsWith(selectedYear) && record.receiptIssued) {
-        total += record.amount;
+      if (record.recordType === 'payment' && record.date.startsWith(selectedYear)) {
+        if (record.receiptIssued) declared += record.amount;
+        else undeclared += record.amount;
       }
     });
     
-    return total;
+    return { patientAnnualTotal: declared, patientAnnualUndeclared: undeclared };
   }, [patientForReceipt, selectedYear]);
+
+  const handleDeclareAllForPatient = async () => {
+    if (!patientForReceipt) return;
+    
+    const updatedPatient = { ...patientForReceipt };
+    
+    // Update old payments
+    if (updatedPatient.payments) {
+      updatedPatient.payments = updatedPatient.payments.map(p => {
+        if (p.date.startsWith(selectedYear)) {
+          return { ...p, receiptIssued: true };
+        }
+        return p;
+      });
+    }
+    
+    // Update new financeiro records
+    if (updatedPatient.financeiro) {
+      updatedPatient.financeiro = updatedPatient.financeiro.map((record: any) => {
+        if (record.recordType === 'payment' && record.date.startsWith(selectedYear)) {
+          return { ...record, receiptIssued: true };
+        }
+        return record;
+      });
+    }
+    
+    await savePatient(updatedPatient);
+    alert('Todos os pagamentos deste paciente no ano selecionado foram marcados como declarados.');
+  };
 
   return (
     <div className={`max-w-5xl mx-auto space-y-6 ${printMode ? 'print:space-y-0' : ''}`}>
@@ -300,8 +334,8 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             >
               <option value="">-- Selecione --</option>
               {patients.filter(p => 
-                (p.payments && p.payments.some(pay => pay.date.startsWith(selectedYear) && pay.receiptIssued)) ||
-                (p.financeiro && p.financeiro.some((record: any) => record.recordType === 'payment' && record.date.startsWith(selectedYear) && record.receiptIssued))
+                (p.payments && p.payments.some(pay => pay.date.startsWith(selectedYear))) ||
+                (p.financeiro && p.financeiro.some((record: any) => record.recordType === 'payment' && record.date.startsWith(selectedYear)))
               ).map(p => (
                 <option key={p.id} value={p.id}>{p.fullName} (CPF: {p.cpf || 'Não informado'})</option>
               ))}
@@ -316,9 +350,43 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             Gerar Recibo Anual
           </button>
         </div>
-        {selectedPatientForReceipt && patientAnnualTotal > 0 && (
-          <div className="px-6 pb-6 text-sm text-slate-600">
-            Valor total a ser declarado em {selectedYear}: <strong className="text-slate-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(patientAnnualTotal)}</strong>
+        {selectedPatientForReceipt && (
+          <div className="px-6 pb-6 space-y-3">
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <span>Total Declarado (Com Recibo):</span>
+                    <strong className="text-teal-700">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(patientAnnualTotal)}</strong>
+                  </div>
+                  {patientAnnualUndeclared > 0 && (
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <span>Total Não Declarado (Sem Recibo):</span>
+                      <strong className="text-rose-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(patientAnnualUndeclared)}</strong>
+                    </div>
+                  )}
+                </div>
+                
+                {patientAnnualUndeclared > 0 && (
+                  <button
+                    onClick={handleDeclareAllForPatient}
+                    className="text-xs font-bold text-teal-700 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 px-3 py-2 rounded-lg border border-teal-200 transition-all"
+                  >
+                    Declarar Tudo para este Paciente
+                  </button>
+                )}
+              </div>
+              
+              {patientAnnualUndeclared > 0 && (
+                <div className="mt-3 flex items-start gap-2 text-[11px] text-amber-600 bg-amber-50 p-2 rounded border border-amber-100">
+                  <AlertCircle className="h-3 w-3 shrink-0 mt-0.5" />
+                  <p>
+                    Atenção: O paciente pagou um total de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(patientAnnualTotal + patientAnnualUndeclared)}. 
+                    Se você emitir o recibo anual com o valor total, clique em "Declarar Tudo" para que seu cálculo de imposto fique correto.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
