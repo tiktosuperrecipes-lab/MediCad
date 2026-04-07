@@ -1,4 +1,4 @@
-import { collection, addDoc, doc, setDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
 import { Patient } from '../types';
 
@@ -31,20 +31,26 @@ export async function savePatient(patient: Patient): Promise<void> {
     // Mantendo o salvamento local temporariamente para não quebrar o app
     const patients = await getPatients();
     const index = patients.findIndex(p => p.id === patient.id);
-
     
     if (index >= 0) {
+      // É uma edição: Atualiza no Firestore usando updateDoc
+      const patientRef = doc(db, 'pacientes', patient.id);
+      
+      // Removemos o ID do payload para não duplicar dados desnecessários no documento
+      const { id, ...patientData } = patient;
+      await updateDoc(patientRef, patientData);
+
+      // Atualiza o fallback local
       patients[index] = patient;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
-      
-      // Atualiza no Firestore (usando setDoc para manter o ID existente)
-      await setDoc(doc(db, 'pacientes', patient.id), patient);
     } else {
+      // É um novo paciente: Salva no Firestore usando addDoc
+      const { id, ...patientData } = patient;
+      await addDoc(collection(db, 'pacientes'), patientData);
+
+      // Atualiza o fallback local
       patients.push(patient);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
-      
-      // Salva no Firestore usando addDoc conforme solicitado
-      await addDoc(collection(db, 'pacientes'), patient);
     }
   } catch (error) {
     console.error("Erro detalhado ao salvar paciente no Firestore:", error);
@@ -52,7 +58,18 @@ export async function savePatient(patient: Patient): Promise<void> {
 }
 
 export async function deletePatient(id: string): Promise<void> {
-  const patients = await getPatients();
-  const filtered = patients.filter(p => p.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+  try {
+    // Exclui o documento correspondente no Firestore
+    await deleteDoc(doc(db, 'pacientes', id));
+    
+    // Mantém o fallback local sincronizado
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (data) {
+      const patients = JSON.parse(data);
+      const filtered = patients.filter((p: Patient) => p.id !== id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    }
+  } catch (error) {
+    console.error("Erro ao excluir paciente no Firestore:", error);
+  }
 }
