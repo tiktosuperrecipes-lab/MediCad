@@ -85,6 +85,7 @@ export interface GlobalFinancialRecord {
   method: string;
   procedure: string;
   status: 'Pendente' | 'Pago';
+  receiptIssued?: boolean;
   createdAt: string;
 }
 

@@ -4,7 +4,7 @@ import { Patient, GlobalFinancialRecord } from '../types';
 import { calculateMonthlyIR } from '../lib/taxCalculator';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateLong, formatDateShort } from '../lib/dateUtils';
-import { savePatient, getGlobalFinancialRecords, updateGlobalFinancialRecordStatus } from '../lib/storage';
+import { savePatient, getGlobalFinancialRecords, updateGlobalFinancialRecordStatus, updateGlobalFinancialRecordReceipt } from '../lib/storage';
 
 interface FinancialDashboardProps {
   patients: Patient[];
@@ -41,6 +41,15 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
     }
   };
 
+  const handleToggleReceipt = async (id: string, currentStatus: boolean) => {
+    try {
+      await updateGlobalFinancialRecordReceipt(id, !currentStatus);
+      await loadGlobalRecords();
+    } catch (error) {
+      alert('Erro ao atualizar recibo.');
+    }
+  };
+
   // Calculate totals for cashflow
   const { pendingTotal, receivedTotal, unifiedPendingRecords, unifiedReceivedRecords } = useMemo(() => {
     const currentMonthPrefix = `${selectedYear}-${selectedMonth}`;
@@ -69,7 +78,8 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             amount: record.amount,
             method: record.method,
             procedure: record.notes || 'Pagamento registrado no prontuário',
-            status: record.receiptIssued ? 'Pago' : 'Pendente'
+            status: record.receiptIssued ? 'Pago' : 'Pendente',
+            receiptIssued: record.receiptIssued || false
           };
           
           if (record.receiptIssued) {
@@ -358,11 +368,24 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
                   unifiedReceivedRecords.map(record => (
                     <div key={record.id} className="p-4 hover:bg-slate-50 transition-colors">
                       <div className="flex justify-between items-start mb-1">
-                        <div>
-                          <p className="font-bold text-slate-900">{record.patientName}</p>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-900">{record.patientName}</p>
+                            {record.receiptIssued && (
+                              <span className="bg-teal-100 text-teal-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">Recibo</span>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-500">{formatDateShort(record.date)} • {record.method}</p>
                         </div>
-                        <p className="font-bold text-slate-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(record.amount)}</p>
+                        <div className="text-right">
+                          <p className="font-bold text-slate-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(record.amount)}</p>
+                          <button
+                            onClick={() => handleToggleReceipt(record.id, !!record.receiptIssued)}
+                            className={`text-[10px] font-bold mt-1 underline ${record.receiptIssued ? 'text-rose-600 hover:text-rose-700' : 'text-teal-600 hover:text-teal-700'}`}
+                          >
+                            {record.receiptIssued ? 'Remover Recibo' : 'Marcar Recibo'}
+                          </button>
+                        </div>
                       </div>
                       <p className="text-sm text-slate-600 line-clamp-1">{record.procedure}</p>
                     </div>

@@ -168,6 +168,7 @@ export async function addFinancialRecord(patientId: string, record: any): Promis
         method: record.method,
         procedure: record.notes || 'Pagamento avulso',
         status: record.receiptIssued ? 'Pago' : 'Pendente',
+        receiptIssued: record.receiptIssued || false,
         createdAt: new Date().toISOString()
       });
     }
@@ -279,8 +280,9 @@ export async function updateGlobalFinancialRecordStatus(id: string, status: 'Pen
           if (item.id === id) {
             return { 
               ...item, 
-              receiptIssued: status === 'Pago',
-              receiptDate: status === 'Pago' ? getLocalDateString() : item.receiptDate
+              // Não força mais o recibo ao dar baixa, apenas atualiza o status se necessário
+              // No prontuário do paciente, o status é implícito pelo recordType e receiptIssued
+              // mas podemos manter a sincronia se houver um campo status lá (não há no tipo Payment)
             };
           }
           return item;
@@ -290,6 +292,44 @@ export async function updateGlobalFinancialRecordStatus(id: string, status: 'Pen
     }
   } catch (error) {
     console.error("Erro ao atualizar status do registro financeiro:", error);
+    throw error;
+  }
+}
+
+export async function updateGlobalFinancialRecordReceipt(id: string, receiptIssued: boolean): Promise<void> {
+  try {
+    const { getDoc } = await import('firebase/firestore');
+    const recordRef = doc(db, 'financeiro_geral', id);
+    const recordSnap = await getDoc(recordRef);
+    
+    if (!recordSnap.exists()) throw new Error("Registro global não encontrado");
+    
+    const recordData = recordSnap.data() as GlobalFinancialRecord;
+    await updateDoc(recordRef, { receiptIssued });
+
+    // Sincroniza com o prontuário do paciente
+    const patientId = recordData.patientId;
+    const patientRef = doc(db, 'pacientes', patientId);
+    const patientSnap = await getDoc(patientRef);
+
+    if (patientSnap.exists()) {
+      const patientData = patientSnap.data() as Patient;
+      if (patientData.financeiro) {
+        const updatedFinanceiro = patientData.financeiro.map((item: any) => {
+          if (item.id === id) {
+            return { 
+              ...item, 
+              receiptIssued,
+              receiptDate: receiptIssued ? getLocalDateString() : undefined
+            };
+          }
+          return item;
+        });
+        await updateDoc(patientRef, { financeiro: updatedFinanceiro });
+      }
+    }
+  } catch (error) {
+    console.error("Erro ao atualizar recibo do registro financeiro:", error);
     throw error;
   }
 }
