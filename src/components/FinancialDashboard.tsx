@@ -42,20 +42,55 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
   };
 
   // Calculate totals for cashflow
-  const { pendingTotal, receivedTotal } = useMemo(() => {
+  const { pendingTotal, receivedTotal, unifiedPendingRecords, unifiedReceivedRecords } = useMemo(() => {
     const currentMonthPrefix = `${selectedYear}-${selectedMonth}`;
-    let pending = 0;
-    let received = 0;
     
+    // Usar um Map para evitar duplicados entre globalRecords e patient records
+    const pendingMap = new Map<string, any>();
+    const receivedMap = new Map<string, any>();
+    
+    // 1. Adicionar registros globais
     globalRecords.forEach(record => {
       if (record.date.startsWith(currentMonthPrefix)) {
-        if (record.status === 'Pendente') pending += record.amount;
-        else received += record.amount;
+        if (record.status === 'Pendente') pendingMap.set(record.id, record);
+        else receivedMap.set(record.id, record);
       }
     });
     
-    return { pendingTotal: pending, receivedTotal: received };
-  }, [globalRecords, selectedYear, selectedMonth]);
+    // 2. Adicionar registros dos pacientes (para retrocompatibilidade e sincronia)
+    patients.forEach(patient => {
+      patient.financeiro?.forEach((record: any) => {
+        if (record.recordType === 'payment' && record.date.startsWith(currentMonthPrefix)) {
+          const unifiedRecord = {
+            id: record.id,
+            patientId: patient.id,
+            patientName: patient.fullName,
+            date: record.date,
+            amount: record.amount,
+            method: record.method,
+            procedure: record.notes || 'Pagamento registrado no prontuário',
+            status: record.receiptIssued ? 'Pago' : 'Pendente'
+          };
+          
+          if (record.receiptIssued) {
+            if (!receivedMap.has(record.id)) receivedMap.set(record.id, unifiedRecord);
+          } else {
+            if (!pendingMap.has(record.id)) pendingMap.set(record.id, unifiedRecord);
+          }
+        }
+      });
+    });
+    
+    const pendingList = Array.from(pendingMap.values());
+    const receivedList = Array.from(receivedMap.values());
+    
+    return { 
+      pendingTotal: pendingList.reduce((sum, r) => sum + r.amount, 0), 
+      receivedTotal: receivedList.reduce((sum, r) => sum + r.amount, 0),
+      unifiedPendingRecords: pendingList,
+      unifiedReceivedRecords: receivedList
+    };
+  }, [globalRecords, patients, selectedYear, selectedMonth]);
 
   // Calculate total income for the selected month/year
   const { monthlyIncome, monthlyDeclaredIncome } = useMemo(() => {
@@ -281,8 +316,8 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
                 </span>
               </div>
               <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
-                {globalRecords.filter(r => r.status === 'Pendente' && r.date.startsWith(`${selectedYear}-${selectedMonth}`)).length > 0 ? (
-                  globalRecords.filter(r => r.status === 'Pendente' && r.date.startsWith(`${selectedYear}-${selectedMonth}`)).map(record => (
+                {unifiedPendingRecords.length > 0 ? (
+                  unifiedPendingRecords.map(record => (
                     <div key={record.id} className="p-4 hover:bg-slate-50 transition-colors">
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -315,12 +350,12 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
                   Contas Recebidas
                 </h3>
                 <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded-full">
-                  {globalRecords.filter(r => r.status === 'Pago' && r.date.startsWith(`${selectedYear}-${selectedMonth}`)).length}
+                  {unifiedReceivedRecords.length}
                 </span>
               </div>
               <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
-                {globalRecords.filter(r => r.status === 'Pago' && r.date.startsWith(`${selectedYear}-${selectedMonth}`)).length > 0 ? (
-                  globalRecords.filter(r => r.status === 'Pago' && r.date.startsWith(`${selectedYear}-${selectedMonth}`)).map(record => (
+                {unifiedReceivedRecords.length > 0 ? (
+                  unifiedReceivedRecords.map(record => (
                     <div key={record.id} className="p-4 hover:bg-slate-50 transition-colors">
                       <div className="flex justify-between items-start mb-1">
                         <div>

@@ -110,27 +110,36 @@ export default function PatientModal({
       // Usando arrayUnion conforme solicitado no PASSO 2
       await addClinicalEvolution(patient.id, consultationForm.notes);
       
-      // Se houver valor, cria registro financeiro global
-      if (consultationForm.amount && parseFloat(consultationForm.amount) > 0) {
-        await addGlobalFinancialRecord({
-          patientId: patient.id,
-          patientName: patient.fullName,
-          date: consultationForm.date,
-          amount: parseFloat(consultationForm.amount),
-          method: consultationForm.paymentMethod || 'Não informado',
-          procedure: consultationForm.notes.substring(0, 100) + (consultationForm.notes.length > 100 ? '...' : ''),
-          status: 'Pendente',
-          createdAt: new Date().toISOString()
-        });
-      }
-
       // Atualizando o estado local para refletir a mudança imediatamente
       const timestamp = new Date().toLocaleString('pt-BR');
       const evolutionEntry = `${timestamp}: ${consultationForm.notes}`;
       
+      let newPayment: any = null;
+      if (consultationForm.amount && parseFloat(consultationForm.amount) > 0) {
+        const paymentId = crypto.randomUUID();
+        const amount = parseFloat(consultationForm.amount);
+        const method = consultationForm.paymentMethod || 'Não informado';
+        const procedure = consultationForm.notes.substring(0, 100) + (consultationForm.notes.length > 100 ? '...' : '');
+        
+        newPayment = {
+          id: paymentId,
+          date: consultationForm.date,
+          amount: amount,
+          method: method.toLowerCase().includes('pix') ? 'pix' : 
+                  method.toLowerCase().includes('cartão') ? 'credit' : 
+                  method.toLowerCase().includes('dinheiro') ? 'cash' : 'transfer',
+          notes: `Evolução: ${procedure}`,
+          receiptIssued: false,
+          recordType: 'payment'
+        };
+        
+        await addFinancialRecord(patient.id, newPayment);
+      }
+
       const updatedPatient = {
         ...patient,
-        historico_clinico: [evolutionEntry, ...(patient.historico_clinico || [])]
+        historico_clinico: [evolutionEntry, ...(patient.historico_clinico || [])],
+        financeiro: newPayment ? [newPayment, ...(patient.financeiro || [])] : patient.financeiro
       };
 
       onUpdate(updatedPatient);

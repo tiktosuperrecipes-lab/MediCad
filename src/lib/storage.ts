@@ -153,6 +153,24 @@ export async function addFinancialRecord(patientId: string, record: any): Promis
     await updateDoc(patientRef, {
       financeiro: arrayUnion(cleanRecord)
     });
+
+    // Se for um pagamento, sincroniza com o financeiro global
+    if (record.recordType === 'payment') {
+      const patientSnapshot = await getDocs(query(collection(db, 'pacientes'), where('__name__', '==', patientId)));
+      const patientData = patientSnapshot.docs[0]?.data() as Patient;
+      
+      await addGlobalFinancialRecord({
+        id: record.id, // Usa o mesmo ID para facilitar a sincronização
+        patientId: patientId,
+        patientName: patientData?.fullName || 'Paciente Desconhecido',
+        date: record.date,
+        amount: record.amount,
+        method: record.method,
+        procedure: record.notes || 'Pagamento avulso',
+        status: record.receiptIssued ? 'Pago' : 'Pendente',
+        createdAt: new Date().toISOString()
+      });
+    }
   } catch (error) {
     console.error("Erro ao adicionar registro financeiro:", error);
     throw error;
@@ -184,13 +202,34 @@ export async function removePatientPhoto(patientId: string, base64Image: string)
 }
 
 // Global Financial Records
-export async function addGlobalFinancialRecord(record: Omit<GlobalFinancialRecord, 'id'>): Promise<void> {
+export async function addGlobalFinancialRecord(record: Omit<GlobalFinancialRecord, 'id'> & { id?: string }): Promise<void> {
   try {
-    const cleanRecord = JSON.parse(JSON.stringify(record));
-    await addDoc(collection(db, 'financeiro_geral'), {
-      ...cleanRecord,
-      createdAt: new Date().toISOString()
-    });
+    const { id, ...data } = record;
+    const cleanRecord = JSON.parse(JSON.stringify(data));
+    
+    if (id) {
+      const recordRef = doc(db, 'financeiro_geral', id);
+      await updateDoc(recordRef, {
+        ...cleanRecord,
+        createdAt: new Date().toISOString()
+      }).catch(async (err) => {
+        // Se o documento não existir, cria um novo com o ID fornecido
+        if (err.code === 'not-found') {
+          const { setDoc } = await import('firebase/firestore');
+          await setDoc(recordRef, {
+            ...cleanRecord,
+            createdAt: new Date().toISOString()
+          });
+        } else {
+          throw err;
+        }
+      });
+    } else {
+      await addDoc(collection(db, 'financeiro_geral'), {
+        ...cleanRecord,
+        createdAt: new Date().toISOString()
+      });
+    }
   } catch (error) {
     console.error("Erro ao adicionar registro financeiro global:", error);
     throw error;
@@ -219,12 +258,48 @@ export async function getGlobalFinancialRecords(): Promise<GlobalFinancialRecord
 
 export async function updateGlobalFinancialRecordStatus(id: string, status: 'Pendente' | 'Pago'): Promise<void> {
   try {
+    const { getDoc } = await import('firebase/firestore');
     const recordRef = doc(db, 'financeiro_geral', id);
+    const recordSnap = await getDoc(recordRef);
+    
+    if (!recordSnap.exists()) throw new Error("Registro global não encontrado");
+    
+    const recordData = recordSnap.data() as GlobalFinancialRecord;
     await updateDoc(recordRef, { status });
+
+    // Sincroniza com o prontuário do paciente
+    const patientId = recordData.patientId;
+    const patientRef = doc(db, 'pacientes', patientId);
+    const patientSnap = await getDoc(patientRef);
+
+    if (patientSnap.exists()) {
+      const patientData = patientSnap.data() as Patient;
+      if (patientData.financeiro) {
+        const updatedFinanceiro = patientData.financeiro.map((item: any) => {
+          if (item.id === id) {
+            return { 
+              ...item, 
+              receiptIssued: status === 'Pago',
+              receiptDate: status === 'Pago' ? getLocalDateString() : item.receiptDate
+            };
+          }
+          return item;
+        });
+        await updateDoc(patientRef, { financeiro: updatedFinanceiro });
+      }
+    }
   } catch (error) {
     console.error("Erro ao atualizar status do registro financeiro:", error);
     throw error;
   }
+}
+
+function getLocalDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 // Data Reset Functions
