@@ -24,7 +24,7 @@ export default function PatientModal({
   const [settings, setSettings] = useState<ClinicSettings | null>(null);
 
   useEffect(() => {
-    setSettings(getSettings());
+    getSettings().then(setSettings);
   }, []);
   
   // History State
