@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2 } from 'lucide-react';
+import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX } from 'lucide-react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto } from '../types';
-import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord } from '../lib/storage';
+import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
 import { compressImage } from '../lib/imageUtils';
@@ -1370,18 +1370,23 @@ export default function PatientModal({
                               </div>
                               <div className="flex items-center gap-2">
                                 <button
-                                  onClick={() => {
+                                  onClick={async () => {
                                     if (!payment.receiptIssued) {
-                                      const updatedPatient = {
-                                        ...patient,
-                                        financeiro: patient.financeiro?.map((f: any) => 
-                                          (f.id === payment.id && f.recordType === 'payment')
-                                            ? { ...f, receiptIssued: true, receiptDate: getLocalDateString() } 
-                                            : f
-                                        )
-                                      };
-                                      savePatient(updatedPatient);
-                                      onUpdate(updatedPatient);
+                                      try {
+                                        await updateGlobalFinancialRecordReceipt(payment.id, true);
+                                        const updatedPatient = {
+                                          ...patient,
+                                          financeiro: patient.financeiro?.map((f: any) => 
+                                            (f.id === payment.id && f.recordType === 'payment')
+                                              ? { ...f, receiptIssued: true, receiptDate: getLocalDateString() } 
+                                              : f
+                                          )
+                                        };
+                                        onUpdate(updatedPatient);
+                                      } catch (error) {
+                                        console.error("Erro ao emitir recibo:", error);
+                                        alert("Erro ao emitir recibo.");
+                                      }
                                     }
                                     setPrintReceiptPaymentId(payment.id);
                                     handlePrint('receipt', () => setPrintReceiptPaymentId(null));
@@ -1391,6 +1396,33 @@ export default function PatientModal({
                                 >
                                   <Printer className="h-4 w-4" />
                                 </button>
+                                {payment.receiptIssued && (
+                                  <button
+                                    onClick={async () => {
+                                      if (window.confirm('Deseja remover o registro de recibo deste pagamento? Ele deixará de aparecer no faturamento declarado.')) {
+                                        try {
+                                          await updateGlobalFinancialRecordReceipt(payment.id, false);
+                                          const updatedPatient = {
+                                            ...patient,
+                                            financeiro: patient.financeiro?.map((f: any) => 
+                                              (f.id === payment.id && f.recordType === 'payment')
+                                                ? { ...f, receiptIssued: false, receiptDate: null } 
+                                                : f
+                                            )
+                                          };
+                                          onUpdate(updatedPatient);
+                                        } catch (error) {
+                                          console.error("Erro ao remover recibo:", error);
+                                          alert("Erro ao remover recibo.");
+                                        }
+                                      }
+                                    }}
+                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Remover Recibo (Desdeclarar)"
+                                  >
+                                    <FileX className="h-4 w-4" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => {
                                     const updatedPatient = {
@@ -1494,7 +1526,22 @@ export default function PatientModal({
                           </div>
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => {
+                              onClick={async () => {
+                                if (!payment.receiptIssued) {
+                                  try {
+                                    await updateGlobalFinancialRecordReceipt(payment.id, true);
+                                    const updatedPatient = {
+                                      ...patient,
+                                      payments: patient.payments?.map((p: any) => 
+                                        p.id === payment.id ? { ...p, receiptIssued: true, receiptDate: getLocalDateString() } : p
+                                      )
+                                    };
+                                    onUpdate(updatedPatient);
+                                  } catch (error) {
+                                    console.error("Erro ao emitir recibo:", error);
+                                    alert("Erro ao emitir recibo.");
+                                  }
+                                }
                                 setPrintReceiptPaymentId(payment.id);
                                 handlePrint('receipt', () => setPrintReceiptPaymentId(null));
                               }}
@@ -1503,6 +1550,31 @@ export default function PatientModal({
                             >
                               <Printer className="h-4 w-4" />
                             </button>
+                            {payment.receiptIssued && (
+                              <button
+                                onClick={async () => {
+                                  if (window.confirm('Deseja remover o registro de recibo deste pagamento? Ele deixará de aparecer no faturamento declarado.')) {
+                                    try {
+                                      await updateGlobalFinancialRecordReceipt(payment.id, false);
+                                      const updatedPatient = {
+                                        ...patient,
+                                        payments: patient.payments?.map((p: any) => 
+                                          p.id === payment.id ? { ...p, receiptIssued: false, receiptDate: null } : p
+                                        )
+                                      };
+                                      onUpdate(updatedPatient);
+                                    } catch (error) {
+                                      console.error("Erro ao remover recibo:", error);
+                                      alert("Erro ao remover recibo.");
+                                    }
+                                  }
+                                }}
+                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Remover Recibo (Desdeclarar)"
+                              >
+                                <FileX className="h-4 w-4" />
+                              </button>
+                            )}
                             <button
                               onClick={() => handleDeletePayment(payment.id)}
                               className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

@@ -344,20 +344,38 @@ export async function updateGlobalFinancialRecordReceipt(id: string, receiptIssu
 
       if (patientSnap.exists()) {
         const patientData = patientSnap.data() as Patient;
+        const updates: any = {};
+
         if (patientData.financeiro) {
-          const updatedFinanceiro = patientData.financeiro.map((item: any) => {
+          updates.financeiro = patientData.financeiro.map((item: any) => {
             if (item.id === id) {
               const updatedItem = { 
                 ...item, 
                 receiptIssued,
                 receiptDate: receiptIssued ? getLocalDateString() : null
               };
-              // Remove undefined keys if any
               return JSON.parse(JSON.stringify(updatedItem));
             }
             return item;
           });
-          await updateDoc(patientRef, { financeiro: updatedFinanceiro });
+        }
+
+        if (patientData.payments) {
+          updates.payments = patientData.payments.map((item: any) => {
+            if (item.id === id) {
+              const updatedItem = { 
+                ...item, 
+                receiptIssued,
+                receiptDate: receiptIssued ? getLocalDateString() : null
+              };
+              return JSON.parse(JSON.stringify(updatedItem));
+            }
+            return item;
+          });
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await updateDoc(patientRef, updates);
         }
       }
     } else {
