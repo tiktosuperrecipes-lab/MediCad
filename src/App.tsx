@@ -4,22 +4,30 @@ import PatientForm from './components/PatientForm';
 import PatientList from './components/PatientList';
 import Settings from './components/Settings';
 import FinancialDashboard from './components/FinancialDashboard';
+import Login from './components/Login';
 import { Patient } from './types';
 import { getPatients } from './lib/storage';
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<'form' | 'list' | 'settings' | 'financial'>('form');
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
 
   useEffect(() => {
-    refreshPatients();
-  }, []);
+    if (isAuthenticated) {
+      refreshPatients();
+    }
+  }, [isAuthenticated]);
 
   const refreshPatients = async () => {
     const data = await getPatients();
     setPatients(data);
   };
+
+  if (!isAuthenticated) {
+    return <Login onLogin={() => setIsAuthenticated(true)} />;
+  }
 
   const handleTabChange = (tab: 'form' | 'list' | 'settings' | 'financial') => {
     setActiveTab(tab);
