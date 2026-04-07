@@ -66,9 +66,9 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
     
     // 2. Adicionar registros dos pacientes (para retrocompatibilidade e sincronia)
     patients.forEach(patient => {
+      // New financeiro records
       patient.financeiro?.forEach((record: any) => {
         if (record.recordType === 'payment' && record.date.startsWith(currentMonthPrefix)) {
-          // Se já existe no mapa (veio do global), não sobrescrevemos para manter o status mais atual
           if (!allRecordsMap.has(record.id)) {
             const unifiedRecord = {
               id: record.id,
@@ -83,7 +83,31 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             };
             allRecordsMap.set(record.id, unifiedRecord);
           } else {
-            // Se já existe, garantimos que o receiptIssued esteja sincronizado se o global estiver desatualizado
+            const existing = allRecordsMap.get(record.id);
+            if (record.receiptIssued !== undefined && record.receiptIssued !== existing.receiptIssued) {
+              allRecordsMap.set(record.id, { ...existing, receiptIssued: record.receiptIssued });
+            }
+          }
+        }
+      });
+
+      // Old payments records
+      patient.payments?.forEach((record: any) => {
+        if (record.date.startsWith(currentMonthPrefix)) {
+          if (!allRecordsMap.has(record.id)) {
+            const unifiedRecord = {
+              id: record.id,
+              patientId: patient.id,
+              patientName: patient.fullName,
+              date: record.date,
+              amount: record.amount,
+              method: record.method,
+              procedure: record.notes || 'Pagamento antigo',
+              status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
+              receiptIssued: record.receiptIssued || false
+            };
+            allRecordsMap.set(record.id, unifiedRecord);
+          } else {
             const existing = allRecordsMap.get(record.id);
             if (record.receiptIssued !== undefined && record.receiptIssued !== existing.receiptIssued) {
               allRecordsMap.set(record.id, { ...existing, receiptIssued: record.receiptIssued });
@@ -120,6 +144,7 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
     
     // 2. Patients
     patients.forEach(patient => {
+      // New financeiro records
       patient.financeiro?.forEach((record: any) => {
         if (record.recordType === 'payment' && record.date.startsWith(selectedYear)) {
           if (!allRecordsMap.has(record.id)) {
@@ -130,6 +155,31 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
               receiptIssued: record.receiptIssued || false
             };
             allRecordsMap.set(record.id, unifiedRecord);
+          } else {
+            const existing = allRecordsMap.get(record.id);
+            if (record.receiptIssued !== undefined && record.receiptIssued !== existing.receiptIssued) {
+              allRecordsMap.set(record.id, { ...existing, receiptIssued: record.receiptIssued });
+            }
+          }
+        }
+      });
+
+      // Old payments records
+      patient.payments?.forEach((record: any) => {
+        if (record.date.startsWith(selectedYear)) {
+          if (!allRecordsMap.has(record.id)) {
+            const unifiedRecord = {
+              id: record.id,
+              status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
+              amount: record.amount,
+              receiptIssued: record.receiptIssued || false
+            };
+            allRecordsMap.set(record.id, unifiedRecord);
+          } else {
+            const existing = allRecordsMap.get(record.id);
+            if (record.receiptIssued !== undefined && record.receiptIssued !== existing.receiptIssued) {
+              allRecordsMap.set(record.id, { ...existing, receiptIssued: record.receiptIssued });
+            }
           }
         }
       });
