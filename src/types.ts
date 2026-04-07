@@ -68,6 +68,14 @@ export interface Appointment {
   status: 'Agendado' | 'Confirmado' | 'Finalizado';
 }
 
+export interface PatientPhoto {
+  id: string;
+  base64: string;
+  description: string;
+  date: string;
+  linkedConsultation?: string;
+}
+
 export interface Patient {
   id: string;
   // Personal
@@ -98,7 +106,7 @@ export interface Patient {
   // CRM & Prontuário
   consultations?: Consultation[];
   historico_clinico?: string[];
-  fotos?: string[];
+  fotos?: (string | PatientPhoto)[];
   nextReturn?: string;
 
   // Anamnese Base

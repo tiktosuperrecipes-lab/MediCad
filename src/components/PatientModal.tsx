@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2 } from 'lucide-react';
-import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment } from '../types';
+import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2 } from 'lucide-react';
+import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto } from '../types';
 import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
@@ -63,7 +63,10 @@ export default function PatientModal({
   
   // Photo Gallery State
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
+  const [viewingPhoto, setViewingPhoto] = useState<string | PatientPhoto | null>(null);
+  const [pendingPhoto, setPendingPhoto] = useState<{base64: string, description: string, linkedConsultation: string} | null>(null);
+  const [isEditingPhotoDetails, setIsEditingPhotoDetails] = useState(false);
+  const [editPhotoForm, setEditPhotoForm] = useState({ description: '', linkedConsultation: '' });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const [paymentForm, setPaymentForm] = useState({
@@ -324,17 +327,14 @@ export default function PatientModal({
     setIsUploadingPhoto(true);
     try {
       const base64Image = await compressImage(file);
-      await addPatientPhoto(patient.id, base64Image);
-      
-      const updatedPatient = {
-        ...patient,
-        fotos: [...(patient.fotos || []), base64Image]
-      };
-      onUpdate(updatedPatient);
-      alert('Foto salva com sucesso!');
+      setPendingPhoto({
+        base64: base64Image,
+        description: '',
+        linkedConsultation: ''
+      });
     } catch (error) {
       console.error("Erro ao processar foto:", error);
-      alert('Erro ao salvar a foto. Tente novamente.');
+      alert('Erro ao processar a foto. Tente novamente.');
     } finally {
       setIsUploadingPhoto(false);
       if (fileInputRef.current) {
@@ -343,21 +343,76 @@ export default function PatientModal({
     }
   };
 
-  const handleDeletePhoto = async (base64Image: string) => {
+  const handleSavePhoto = () => {
+    if (!pendingPhoto) return;
+    
+    const newPhoto: PatientPhoto = {
+      id: crypto.randomUUID(),
+      base64: pendingPhoto.base64,
+      description: pendingPhoto.description,
+      date: new Date().toLocaleString('pt-BR'),
+      linkedConsultation: pendingPhoto.linkedConsultation
+    };
+
+    const updatedPatient = {
+      ...patient,
+      fotos: [...(patient.fotos || []), newPhoto]
+    };
+    
+    savePatient(updatedPatient);
+    onUpdate(updatedPatient);
+    setPendingPhoto(null);
+  };
+
+  const handleDeletePhoto = async (photoToDelete: string | PatientPhoto) => {
     if (!window.confirm('Tem certeza que deseja excluir esta foto?')) return;
 
     try {
-      await removePatientPhoto(patient.id, base64Image);
       const updatedPatient = {
         ...patient,
-        fotos: patient.fotos?.filter(f => f !== base64Image)
+        fotos: patient.fotos?.filter(f => {
+          if (typeof f === 'string' && typeof photoToDelete === 'string') return f !== photoToDelete;
+          if (typeof f !== 'string' && typeof photoToDelete !== 'string') return f.id !== photoToDelete.id;
+          return f !== photoToDelete;
+        })
       };
+      savePatient(updatedPatient);
       onUpdate(updatedPatient);
       setViewingPhoto(null);
     } catch (error) {
       console.error("Erro ao excluir foto:", error);
       alert('Erro ao excluir a foto.');
     }
+  };
+
+  const handleUpdatePhotoDetails = () => {
+    if (!viewingPhoto) return;
+
+    const isString = typeof viewingPhoto === 'string';
+    
+    const updatedPhoto: PatientPhoto = {
+      id: isString ? crypto.randomUUID() : (viewingPhoto as PatientPhoto).id,
+      base64: isString ? viewingPhoto as string : (viewingPhoto as PatientPhoto).base64,
+      description: editPhotoForm.description,
+      date: isString ? new Date().toLocaleString('pt-BR') : (viewingPhoto as PatientPhoto).date,
+      linkedConsultation: editPhotoForm.linkedConsultation
+    };
+
+    const updatedPatient = {
+      ...patient,
+      fotos: patient.fotos?.map(f => {
+        if (typeof f === 'string') {
+          return f === viewingPhoto ? updatedPhoto : f;
+        } else {
+          return f.id === (viewingPhoto as PatientPhoto).id ? updatedPhoto : f;
+        }
+      })
+    };
+
+    savePatient(updatedPatient);
+    onUpdate(updatedPatient);
+    setViewingPhoto(updatedPhoto);
+    setIsEditingPhotoDetails(false);
   };
 
   return (
@@ -746,22 +801,33 @@ export default function PatientModal({
 
               {patient.fotos && patient.fotos.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {patient.fotos.map((foto, idx) => (
-                    <div 
-                      key={idx} 
-                      onClick={() => setViewingPhoto(foto)}
-                      className="aspect-square rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative bg-slate-100"
-                    >
-                      <img 
-                        src={foto} 
-                        alt={`Foto ${idx + 1}`} 
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
-                        <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 drop-shadow-md" />
+                  {patient.fotos.map((foto, idx) => {
+                    const isObj = typeof foto !== 'string';
+                    const src = isObj ? (foto as PatientPhoto).base64 : foto as string;
+                    const desc = isObj ? (foto as PatientPhoto).description : '';
+                    
+                    return (
+                      <div 
+                        key={isObj ? (foto as PatientPhoto).id : idx} 
+                        onClick={() => setViewingPhoto(foto)}
+                        className="aspect-square rounded-xl overflow-hidden border border-slate-200 cursor-pointer group relative bg-slate-100"
+                      >
+                        <img 
+                          src={src} 
+                          alt={`Foto ${idx + 1}`} 
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        {desc && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900/80 to-transparent p-3 pt-6">
+                            <p className="text-white text-xs truncate font-medium">{desc}</p>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center">
+                          <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 drop-shadow-md" />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
@@ -1442,30 +1508,217 @@ export default function PatientModal({
       </div>
 
       {/* Photo Viewer Modal */}
-      {viewingPhoto && (
-        <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="relative max-w-5xl w-full max-h-[95vh] flex flex-col items-center">
-            <div className="absolute top-0 right-0 flex items-center gap-4 p-4 z-10">
-              <button 
-                onClick={() => handleDeletePhoto(viewingPhoto)}
-                className="p-2 bg-rose-600/80 hover:bg-rose-600 text-white rounded-full transition-colors backdrop-blur-md"
-                title="Excluir foto"
-              >
-                <Trash2 className="h-5 w-5" />
-              </button>
-              <button 
-                onClick={() => setViewingPhoto(null)}
-                className="p-2 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full transition-colors backdrop-blur-md"
-                title="Fechar"
-              >
-                <X className="h-6 w-6" />
+      {viewingPhoto && (() => {
+        const isObj = typeof viewingPhoto !== 'string';
+        const src = isObj ? (viewingPhoto as PatientPhoto).base64 : viewingPhoto as string;
+        const desc = isObj ? (viewingPhoto as PatientPhoto).description : '';
+        const date = isObj ? (viewingPhoto as PatientPhoto).date : '';
+        const linked = isObj ? (viewingPhoto as PatientPhoto).linkedConsultation : '';
+
+        return (
+          <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+            <div className="relative max-w-6xl w-full max-h-[95vh] flex flex-col md:flex-row bg-white rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+              
+              {/* Image Area */}
+              <div className="flex-1 bg-slate-100 flex items-center justify-center relative min-h-[50vh] md:min-h-0">
+                <img 
+                  src={src} 
+                  alt="Visualização Clínica" 
+                  className="max-w-full max-h-[95vh] object-contain"
+                />
+              </div>
+
+              {/* Details Sidebar */}
+              <div className="w-full md:w-80 bg-white flex flex-col border-l border-slate-200">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4 text-teal-600" />
+                    Detalhes da Foto
+                  </h3>
+                  <div className="flex items-center gap-1">
+                    {!isEditingPhotoDetails && (
+                      <button 
+                        onClick={() => {
+                          setIsEditingPhotoDetails(true);
+                          const isString = typeof viewingPhoto === 'string';
+                          setEditPhotoForm({ 
+                            description: isString ? '' : (viewingPhoto as PatientPhoto).description || '', 
+                            linkedConsultation: isString ? '' : (viewingPhoto as PatientPhoto).linkedConsultation || '' 
+                          });
+                        }}
+                        className="flex items-center gap-1 px-2 py-1 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-md transition-colors text-xs font-bold border border-teal-200"
+                        title="Editar detalhes"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                        Editar Detalhes
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => {
+                        setViewingPhoto(null);
+                        setIsEditingPhotoDetails(false);
+                      }}
+                      className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6 flex-1 overflow-y-auto space-y-6">
+                  {isEditingPhotoDetails ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
+                        <textarea
+                          value={editPhotoForm.description}
+                          onChange={(e) => setEditPhotoForm({...editPhotoForm, description: e.target.value})}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none resize-none h-32 text-sm"
+                          placeholder="Adicione uma descrição..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Vincular a uma Consulta</label>
+                        <select
+                          value={editPhotoForm.linkedConsultation}
+                          onChange={(e) => setEditPhotoForm({...editPhotoForm, linkedConsultation: e.target.value})}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white text-sm"
+                        >
+                          <option value="">-- Nenhuma consulta vinculada --</option>
+                          {patient.historico_clinico?.map((entry, idx) => {
+                            const snippet = entry.substring(0, 60) + (entry.length > 60 ? '...' : '');
+                            return <option key={idx} value={entry}>{snippet}</option>;
+                          })}
+                        </select>
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <button 
+                          onClick={() => setIsEditingPhotoDetails(false)}
+                          className="flex-1 px-4 py-2 text-slate-600 hover:bg-slate-100 font-medium rounded-lg transition-colors text-sm"
+                        >
+                          Cancelar
+                        </button>
+                        <button 
+                          onClick={handleUpdatePhotoDetails}
+                          className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          Salvar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {date && (
+                        <div>
+                          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Data de Adição</label>
+                          <p className="text-slate-700 text-sm flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-slate-400" />
+                            {date}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {desc && (
+                        <div>
+                          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Descrição</label>
+                          <p className="text-slate-700 text-sm whitespace-pre-wrap bg-slate-50 p-3 rounded-lg border border-slate-100">{desc}</p>
+                        </div>
+                      )}
+
+                      {linked && (
+                        <div>
+                          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Consulta Vinculada</label>
+                          <div className="text-slate-700 text-sm bg-teal-50/50 p-3 rounded-lg border border-teal-100">
+                            <p className="line-clamp-3 text-teal-900">{linked}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {!date && !desc && !linked && (
+                        <div className="text-center py-8 text-slate-400">
+                          <p className="text-sm">Nenhum detalhe adicional registrado para esta foto.</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="p-4 border-t border-slate-100 bg-slate-50">
+                  <button 
+                    onClick={() => handleDeletePhoto(viewingPhoto)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 rounded-xl transition-all font-medium shadow-sm"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Excluir Foto
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Pending Photo Upload Modal */}
+      {pendingPhoto && (
+        <div className="fixed inset-0 z-[70] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Upload className="h-5 w-5 text-teal-600" />
+                Detalhes da Foto
+              </h3>
+              <button onClick={() => setPendingPhoto(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <img 
-              src={viewingPhoto} 
-              alt="Visualização Clínica" 
-              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-            />
+            
+            <div className="p-6 space-y-4">
+              <div className="aspect-video bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
+                <img src={pendingPhoto.base64} alt="Preview" className="max-h-full object-contain" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Descrição (Opcional)</label>
+                <textarea
+                  value={pendingPhoto.description}
+                  onChange={(e) => setPendingPhoto({...pendingPhoto, description: e.target.value})}
+                  placeholder="Ex: Foto do dente 36 antes do procedimento..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none resize-none h-20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Vincular a uma Consulta (Opcional)</label>
+                <select
+                  value={pendingPhoto.linkedConsultation}
+                  onChange={(e) => setPendingPhoto({...pendingPhoto, linkedConsultation: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white"
+                >
+                  <option value="">-- Nenhuma consulta vinculada --</option>
+                  {patient.historico_clinico?.map((entry, idx) => {
+                    const snippet = entry.substring(0, 60) + (entry.length > 60 ? '...' : '');
+                    return <option key={idx} value={entry}>{snippet}</option>;
+                  })}
+                </select>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+              <button
+                onClick={() => setPendingPhoto(null)}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-200 font-medium rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSavePhoto}
+                className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                Salvar Foto
+              </button>
+            </div>
           </div>
         </div>
       )}
