@@ -283,7 +283,10 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white"
             >
               <option value="">-- Selecione --</option>
-              {patients.filter(p => p.payments && p.payments.some(pay => pay.date.startsWith(selectedYear))).map(p => (
+              {patients.filter(p => 
+                (p.payments && p.payments.some(pay => pay.date.startsWith(selectedYear))) ||
+                (p.financeiro && p.financeiro.some((record: any) => record.recordType === 'payment' && record.date.startsWith(selectedYear)))
+              ).map(p => (
                 <option key={p.id} value={p.id}>{p.fullName} (CPF: {p.cpf || 'Não informado'})</option>
               ))}
             </select>
