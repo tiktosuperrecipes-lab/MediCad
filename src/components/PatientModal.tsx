@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2 } from 'lucide-react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto } from '../types';
-import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto } from '../lib/storage';
+import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
 import { compressImage } from '../lib/imageUtils';
@@ -32,7 +32,9 @@ export default function PatientModal({
   const [consultationForm, setConsultationForm] = useState({
     date: getLocalDateString(),
     notes: '',
-    returnPrediction: 'none'
+    returnPrediction: 'none',
+    amount: '',
+    paymentMethod: ''
   });
 
   // Anamnesis State
@@ -108,6 +110,20 @@ export default function PatientModal({
       // Usando arrayUnion conforme solicitado no PASSO 2
       await addClinicalEvolution(patient.id, consultationForm.notes);
       
+      // Se houver valor, cria registro financeiro global
+      if (consultationForm.amount && parseFloat(consultationForm.amount) > 0) {
+        await addGlobalFinancialRecord({
+          patientId: patient.id,
+          patientName: patient.fullName,
+          date: consultationForm.date,
+          amount: parseFloat(consultationForm.amount),
+          method: consultationForm.paymentMethod || 'Não informado',
+          procedure: consultationForm.notes.substring(0, 100) + (consultationForm.notes.length > 100 ? '...' : ''),
+          status: 'Pendente',
+          createdAt: new Date().toISOString()
+        });
+      }
+
       // Atualizando o estado local para refletir a mudança imediatamente
       const timestamp = new Date().toLocaleString('pt-BR');
       const evolutionEntry = `${timestamp}: ${consultationForm.notes}`;
@@ -119,10 +135,16 @@ export default function PatientModal({
 
       onUpdate(updatedPatient);
       setShowNewConsultation(false);
-      setConsultationForm({ date: getLocalDateString(), notes: '', returnPrediction: 'none' });
-      alert('Evolução salva com sucesso no Firebase!');
+      setConsultationForm({ 
+        date: getLocalDateString(), 
+        notes: '', 
+        returnPrediction: 'none',
+        amount: '',
+        paymentMethod: ''
+      });
+      alert('Evolução salva com sucesso!');
     } catch (error) {
-      alert('Erro ao salvar evolução no Firebase.');
+      alert('Erro ao salvar evolução.');
     }
   };
 
@@ -693,6 +715,29 @@ export default function PatientModal({
                         <option value="30_days">Em 30 dias</option>
                         <option value="6_months">Em 6 meses</option>
                       </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Valor deste Atendimento (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="0,00"
+                        value={consultationForm.amount}
+                        onChange={(e) => setConsultationForm({...consultationForm, amount: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Forma de Pagamento</label>
+                      <input
+                        type="text"
+                        placeholder="PIX, Cartão, Dinheiro..."
+                        value={consultationForm.paymentMethod}
+                        onChange={(e) => setConsultationForm({...consultationForm, paymentMethod: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                      />
                     </div>
                   </div>
                   <div>

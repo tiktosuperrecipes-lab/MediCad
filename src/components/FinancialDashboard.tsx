@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calculator, DollarSign, TrendingUp, TrendingDown, FileText, AlertCircle, Printer, Download } from 'lucide-react';
-import { Patient } from '../types';
+import { Calculator, DollarSign, TrendingUp, TrendingDown, FileText, AlertCircle, Printer, Download, CheckCircle, Clock } from 'lucide-react';
+import { Patient, GlobalFinancialRecord } from '../types';
 import { calculateMonthlyIR } from '../lib/taxCalculator';
 import { getSettings, ClinicSettings } from '../lib/settings';
-import { getLocalDateString, formatDateLong } from '../lib/dateUtils';
-import { savePatient } from '../lib/storage';
+import { getLocalDateString, formatDateLong, formatDateShort } from '../lib/dateUtils';
+import { savePatient, getGlobalFinancialRecords, updateGlobalFinancialRecordStatus } from '../lib/storage';
 
 interface FinancialDashboardProps {
   patients: Patient[];
@@ -19,10 +19,43 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
   const [printMode, setPrintMode] = useState(false);
   const [selectedPatientForReceipt, setSelectedPatientForReceipt] = useState<string>('');
   const [settings, setSettings] = useState<ClinicSettings | null>(null);
+  const [activeSubTab, setActiveSubTab] = useState<'cashflow' | 'taxes'>('cashflow');
+  const [globalRecords, setGlobalRecords] = useState<GlobalFinancialRecord[]>([]);
   
   useEffect(() => {
     getSettings().then(setSettings);
+    loadGlobalRecords();
   }, []);
+
+  const loadGlobalRecords = async () => {
+    const records = await getGlobalFinancialRecords();
+    setGlobalRecords(records);
+  };
+
+  const handleUpdateStatus = async (id: string, status: 'Pendente' | 'Pago') => {
+    try {
+      await updateGlobalFinancialRecordStatus(id, status);
+      await loadGlobalRecords();
+    } catch (error) {
+      alert('Erro ao atualizar status.');
+    }
+  };
+
+  // Calculate totals for cashflow
+  const { pendingTotal, receivedTotal } = useMemo(() => {
+    const currentMonthPrefix = `${selectedYear}-${selectedMonth}`;
+    let pending = 0;
+    let received = 0;
+    
+    globalRecords.forEach(record => {
+      if (record.date.startsWith(currentMonthPrefix)) {
+        if (record.status === 'Pendente') pending += record.amount;
+        else received += record.amount;
+      }
+    });
+    
+    return { pendingTotal: pending, receivedTotal: received };
+  }, [globalRecords, selectedYear, selectedMonth]);
 
   // Calculate total income for the selected month/year
   const { monthlyIncome, monthlyDeclaredIncome } = useMemo(() => {
@@ -158,8 +191,8 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
     <div className={`max-w-5xl mx-auto space-y-6 ${printMode ? 'print:space-y-0' : ''}`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Financeiro & Impostos</h2>
-          <p className="text-slate-500">Acompanhe seus recebimentos e estimativa do Carnê-Leão.</p>
+          <h2 className="text-2xl font-bold text-slate-800">Financeiro</h2>
+          <p className="text-slate-500">Controle de caixa e impostos da clínica.</p>
         </div>
         <div className="flex gap-2">
           <select
@@ -183,7 +216,132 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
+      {/* Sub Tabs */}
+      <div className="flex border-b border-slate-200 print:hidden">
+        <button
+          onClick={() => setActiveSubTab('cashflow')}
+          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+            activeSubTab === 'cashflow' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Controle de Caixa
+        </button>
+        <button
+          onClick={() => setActiveSubTab('taxes')}
+          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+            activeSubTab === 'taxes' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Impostos & Recibos
+        </button>
+      </div>
+
+      {activeSubTab === 'cashflow' ? (
+        <div className="space-y-6">
+          {/* Cashflow Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <h3 className="font-semibold text-slate-700">Recebido no Mês</h3>
+              </div>
+              <p className="text-3xl font-bold text-emerald-700">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receivedTotal)}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">Total de pagamentos com status 'Pago'</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                  <Clock className="h-5 w-5" />
+                </div>
+                <h3 className="font-semibold text-slate-700">A Receber (Pendente)</h3>
+              </div>
+              <p className="text-3xl font-bold text-amber-700">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pendingTotal)}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">Total de pagamentos com status 'Pendente'</p>
+            </div>
+          </div>
+
+          {/* Lists */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Contas a Receber */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-amber-500" />
+                  Contas a Receber
+                </h3>
+                <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-full">
+                  {globalRecords.filter(r => r.status === 'Pendente' && r.date.startsWith(`${selectedYear}-${selectedMonth}`)).length}
+                </span>
+              </div>
+              <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
+                {globalRecords.filter(r => r.status === 'Pendente' && r.date.startsWith(`${selectedYear}-${selectedMonth}`)).length > 0 ? (
+                  globalRecords.filter(r => r.status === 'Pendente' && r.date.startsWith(`${selectedYear}-${selectedMonth}`)).map(record => (
+                    <div key={record.id} className="p-4 hover:bg-slate-50 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-bold text-slate-900">{record.patientName}</p>
+                          <p className="text-xs text-slate-500">{formatDateShort(record.date)} • {record.method}</p>
+                        </div>
+                        <p className="font-bold text-teal-700">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(record.amount)}</p>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-3 line-clamp-1">{record.procedure}</p>
+                      <button
+                        onClick={() => handleUpdateStatus(record.id, 'Pago')}
+                        className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200 transition-all"
+                      >
+                        <CheckCircle className="h-3 w-3" />
+                        Dar Baixa (Pago)
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-slate-500 italic text-sm">Nenhum pagamento pendente este mês.</div>
+                )}
+              </div>
+            </div>
+
+            {/* Contas Recebidas */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-emerald-500" />
+                  Contas Recebidas
+                </h3>
+                <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded-full">
+                  {globalRecords.filter(r => r.status === 'Pago' && r.date.startsWith(`${selectedYear}-${selectedMonth}`)).length}
+                </span>
+              </div>
+              <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
+                {globalRecords.filter(r => r.status === 'Pago' && r.date.startsWith(`${selectedYear}-${selectedMonth}`)).length > 0 ? (
+                  globalRecords.filter(r => r.status === 'Pago' && r.date.startsWith(`${selectedYear}-${selectedMonth}`)).map(record => (
+                    <div key={record.id} className="p-4 hover:bg-slate-50 transition-colors">
+                      <div className="flex justify-between items-start mb-1">
+                        <div>
+                          <p className="font-bold text-slate-900">{record.patientName}</p>
+                          <p className="text-xs text-slate-500">{formatDateShort(record.date)} • {record.method}</p>
+                        </div>
+                        <p className="font-bold text-slate-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(record.amount)}</p>
+                      </div>
+                      <p className="text-sm text-slate-600 line-clamp-1">{record.procedure}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-slate-500 italic text-sm">Nenhum pagamento recebido este mês.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-teal-100 text-teal-600 rounded-lg">
@@ -390,8 +548,10 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
           </div>
         )}
       </div>
+    </div>
+  )}
 
-      {/* Print View for Annual Receipt */}
+  {/* Print View for Annual Receipt */}
       {printMode && patientForReceipt && (
         <div className="hidden print:block w-full max-w-3xl mx-auto pt-8">
           <div className="text-center mb-12">

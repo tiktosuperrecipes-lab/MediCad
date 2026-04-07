@@ -1,6 +1,6 @@
-import { collection, addDoc, doc, updateDoc, deleteDoc, getDocs, arrayUnion, arrayRemove, query, where } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc, getDocs, arrayUnion, arrayRemove, query, where, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
-import { Patient, Appointment } from '../types';
+import { Patient, Appointment, GlobalFinancialRecord } from '../types';
 
 const STORAGE_KEY = '@medicad:patients';
 
@@ -179,6 +179,93 @@ export async function removePatientPhoto(patientId: string, base64Image: string)
     });
   } catch (error) {
     console.error("Erro ao remover foto do paciente:", error);
+    throw error;
+  }
+}
+
+// Global Financial Records
+export async function addGlobalFinancialRecord(record: Omit<GlobalFinancialRecord, 'id'>): Promise<void> {
+  try {
+    const cleanRecord = JSON.parse(JSON.stringify(record));
+    await addDoc(collection(db, 'financeiro_geral'), {
+      ...cleanRecord,
+      createdAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Erro ao adicionar registro financeiro global:", error);
+    throw error;
+  }
+}
+
+export async function getGlobalFinancialRecords(): Promise<GlobalFinancialRecord[]> {
+  try {
+    const q = query(collection(db, 'financeiro_geral'), orderBy('date', 'desc'));
+    const querySnapshot = await getDocs(q);
+    const records: GlobalFinancialRecord[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      records.push({
+        ...doc.data() as GlobalFinancialRecord,
+        id: doc.id
+      });
+    });
+    
+    return records;
+  } catch (error) {
+    console.error("Erro ao buscar registros financeiros globais:", error);
+    return [];
+  }
+}
+
+export async function updateGlobalFinancialRecordStatus(id: string, status: 'Pendente' | 'Pago'): Promise<void> {
+  try {
+    const recordRef = doc(db, 'financeiro_geral', id);
+    await updateDoc(recordRef, { status });
+  } catch (error) {
+    console.error("Erro ao atualizar status do registro financeiro:", error);
+    throw error;
+  }
+}
+
+// Data Reset Functions
+export async function resetCollection(collectionName: string): Promise<void> {
+  try {
+    const querySnapshot = await getDocs(collection(db, collectionName));
+    const deletePromises = querySnapshot.docs.map(document => deleteDoc(doc(db, collectionName, document.id)));
+    await Promise.all(deletePromises);
+  } catch (error) {
+    console.error(`Erro ao resetar coleção ${collectionName}:`, error);
+    throw error;
+  }
+}
+
+export async function clearPatientClinicalData(area: 'all' | 'financial' | 'clinical'): Promise<void> {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'pacientes'));
+    const updatePromises = querySnapshot.docs.map(document => {
+      const patientRef = doc(db, 'pacientes', document.id);
+      const updates: any = {};
+      
+      if (area === 'all' || area === 'financial') {
+        updates.payments = [];
+        updates.financeiro = [];
+        updates.budgets = [];
+      }
+      
+      if (area === 'all' || area === 'clinical') {
+        updates.historico_clinico = [];
+        updates.consultations = [];
+        updates.prescriptions = [];
+        updates.examRequests = [];
+        updates.certificates = [];
+        updates.fotos = [];
+      }
+      
+      return updateDoc(patientRef, updates);
+    });
+    await Promise.all(updatePromises);
+  } catch (error) {
+    console.error(`Erro ao limpar dados clínicos (${area}):`, error);
     throw error;
   }
 }

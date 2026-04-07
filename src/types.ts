@@ -76,6 +76,18 @@ export interface PatientPhoto {
   linkedConsultation?: string;
 }
 
+export interface GlobalFinancialRecord {
+  id: string;
+  patientId: string;
+  patientName: string;
+  date: string;
+  amount: number;
+  method: string;
+  procedure: string;
+  status: 'Pendente' | 'Pago';
+  createdAt: string;
+}
+
 export interface Patient {
   id: string;
   // Personal

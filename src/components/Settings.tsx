@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2 } from 'lucide-react';
+import { Save, Building2, Trash2, ShieldAlert, Lock, AlertTriangle, DollarSign } from 'lucide-react';
 import { ClinicSettings, getSettings, saveSettings } from '../lib/settings';
+import { resetCollection, clearPatientClinicalData } from '../lib/storage';
 
 interface SettingsProps {
   onSave?: () => void;
@@ -18,6 +19,12 @@ export default function Settings({ onSave }: SettingsProps) {
     agendaEndTime: '18:00'
   });
   const [saved, setSaved] = useState(false);
+  const [showResetMenu, setShowResetMenu] = useState(false);
+  const [password, setPassword] = useState('');
+  const [isAuth, setIsAuth] = useState(false);
+  const [resetStatus, setResetStatus] = useState<{type: string, success: boolean} | null>(null);
+
+  const RESET_PASSWORD = 'Samuel20206@';
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -39,8 +46,44 @@ export default function Settings({ onSave }: SettingsProps) {
     }
   };
 
+  const handleReset = async (type: 'all' | 'patients' | 'financial' | 'agenda') => {
+    if (!window.confirm(`TEM CERTEZA? Esta ação irá apagar permanentemente os dados de: ${type === 'all' ? 'TUDO' : type}. Esta ação não pode ser desfeita.`)) return;
+    
+    try {
+      if (type === 'all') {
+        await resetCollection('pacientes');
+        await resetCollection('agenda');
+        await resetCollection('financeiro_geral');
+      } else if (type === 'patients') {
+        await resetCollection('pacientes');
+      } else if (type === 'financial') {
+        await resetCollection('financeiro_geral');
+        await clearPatientClinicalData('financial');
+      } else if (type === 'agenda') {
+        await resetCollection('agenda');
+      }
+      
+      setResetStatus({ type, success: true });
+      setTimeout(() => setResetStatus(null), 5000);
+      if (onSave) onSave(); // To refresh global state if needed
+    } catch (error) {
+      console.error("Erro ao resetar dados:", error);
+      alert("Erro ao resetar dados. Verifique o console.");
+    }
+  };
+
+  const handleAuth = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === RESET_PASSWORD) {
+      setIsAuth(true);
+    } else {
+      alert('Senha incorreta!');
+      setPassword('');
+    }
+  };
+
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto space-y-6">
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center gap-2">
           <Building2 className="h-5 w-5 text-slate-500" />
@@ -167,6 +210,128 @@ export default function Settings({ onSave }: SettingsProps) {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Seção de Reset de Dados */}
+      <div className="bg-white rounded-xl shadow-sm border border-rose-200 overflow-hidden">
+        <div className="bg-rose-50 px-6 py-4 border-b border-rose-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-rose-600" />
+            <h2 className="font-semibold text-rose-800">Zona de Perigo: Gerenciamento de Dados</h2>
+          </div>
+          {!showResetMenu && (
+            <button 
+              onClick={() => setShowResetMenu(true)}
+              className="text-xs font-bold text-rose-700 hover:text-rose-800 bg-rose-100 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Abrir Opções de Reset
+            </button>
+          )}
+        </div>
+
+        {showResetMenu && (
+          <div className="p-6">
+            {!isAuth ? (
+              <form onSubmit={handleAuth} className="max-w-sm mx-auto text-center space-y-4 py-4">
+                <div className="flex justify-center">
+                  <div className="p-3 bg-rose-100 rounded-full">
+                    <Lock className="h-6 w-6 text-rose-600" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800">Acesso Restrito</h3>
+                  <p className="text-sm text-slate-500">Insira a senha mestra para prosseguir.</p>
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Digite a senha..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none text-center"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button 
+                    type="button"
+                    onClick={() => { setShowResetMenu(false); setPassword(''); }}
+                    className="flex-1 px-4 py-2 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg transition-colors"
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+                <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-bold">Atenção!</p>
+                    <p>As ações abaixo são irreversíveis. Uma vez deletados, os dados não poderão ser recuperados.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    onClick={() => handleReset('patients')}
+                    className="flex flex-col items-center justify-center p-6 border border-slate-200 rounded-xl hover:bg-rose-50 hover:border-rose-200 transition-all group"
+                  >
+                    <Trash2 className="h-8 w-8 text-slate-400 group-hover:text-rose-600 mb-2" />
+                    <span className="font-bold text-slate-700 group-hover:text-rose-800">Resetar Pacientes</span>
+                    <span className="text-xs text-slate-500 text-center mt-1">Apaga todos os cadastros de pacientes e seus históricos.</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleReset('financial')}
+                    className="flex flex-col items-center justify-center p-6 border border-slate-200 rounded-xl hover:bg-rose-50 hover:border-rose-200 transition-all group"
+                  >
+                    <DollarSign className="h-8 w-8 text-slate-400 group-hover:text-rose-600 mb-2" />
+                    <span className="font-bold text-slate-700 group-hover:text-rose-800">Resetar Financeiro</span>
+                    <span className="text-xs text-slate-500 text-center mt-1">Limpa o caixa global e dados de pagamentos dos pacientes.</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleReset('agenda')}
+                    className="flex flex-col items-center justify-center p-6 border border-slate-200 rounded-xl hover:bg-rose-50 hover:border-rose-200 transition-all group"
+                  >
+                    <Trash2 className="h-8 w-8 text-slate-400 group-hover:text-rose-600 mb-2" />
+                    <span className="font-bold text-slate-700 group-hover:text-rose-800">Resetar Agenda</span>
+                    <span className="text-xs text-slate-500 text-center mt-1">Apaga todos os agendamentos realizados.</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleReset('all')}
+                    className="flex flex-col items-center justify-center p-6 border-2 border-rose-100 bg-rose-50/30 rounded-xl hover:bg-rose-100 hover:border-rose-300 transition-all group"
+                  >
+                    <AlertTriangle className="h-8 w-8 text-rose-400 group-hover:text-rose-600 mb-2" />
+                    <span className="font-bold text-rose-700">RESET TOTAL</span>
+                    <span className="text-xs text-rose-600/70 text-center mt-1">Apaga TUDO (Pacientes, Agenda e Financeiro).</span>
+                  </button>
+                </div>
+
+                {resetStatus && (
+                  <div className="p-3 bg-emerald-100 text-emerald-700 text-center rounded-lg font-bold animate-bounce">
+                    Dados de {resetStatus.type === 'all' ? 'TUDO' : resetStatus.type} resetados com sucesso!
+                  </div>
+                )}
+
+                <div className="flex justify-center pt-2">
+                  <button 
+                    onClick={() => { setIsAuth(false); setPassword(''); setShowResetMenu(false); }}
+                    className="text-sm font-medium text-slate-500 hover:text-slate-700 underline"
+                  >
+                    Fechar e Bloquear Acesso
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
