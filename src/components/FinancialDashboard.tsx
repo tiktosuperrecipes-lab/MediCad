@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Calculator, DollarSign, TrendingUp, TrendingDown, FileText, AlertCircle, Printer, Download } from 'lucide-react';
 import { Patient } from '../types';
 import { calculateMonthlyIR } from '../lib/taxCalculator';
-import { getSettings } from '../lib/settings';
+import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateLong } from '../lib/dateUtils';
 
 interface FinancialDashboardProps {
@@ -17,8 +17,11 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
   const [deductibleExpenses, setDeductibleExpenses] = useState<number>(0);
   const [printMode, setPrintMode] = useState(false);
   const [selectedPatientForReceipt, setSelectedPatientForReceipt] = useState<string>('');
+  const [settings, setSettings] = useState<ClinicSettings | null>(null);
   
-  const settings = getSettings();
+  useEffect(() => {
+    getSettings().then(setSettings);
+  }, []);
 
   // Calculate total income for the selected month/year
   const monthlyIncome = useMemo(() => {
@@ -27,6 +30,11 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
       patient.payments?.forEach(payment => {
         if (payment.date.startsWith(`${selectedYear}-${selectedMonth}`)) {
           total += payment.amount;
+        }
+      });
+      patient.financeiro?.forEach((record: any) => {
+        if (record.recordType === 'payment' && record.date.startsWith(`${selectedYear}-${selectedMonth}`)) {
+          total += record.amount;
         }
       });
     });
@@ -40,6 +48,11 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
       patient.payments?.forEach(payment => {
         if (payment.date.startsWith(selectedYear)) {
           total += payment.amount;
+        }
+      });
+      patient.financeiro?.forEach((record: any) => {
+        if (record.recordType === 'payment' && record.date.startsWith(selectedYear)) {
+          total += record.amount;
         }
       });
     });
@@ -79,12 +92,27 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
   };
 
   const patientForReceipt = patients.find(p => p.id === selectedPatientForReceipt);
-  const patientAnnualTotal = patientForReceipt?.payments?.reduce((sum, p) => {
-    if (p.date.startsWith(selectedYear)) {
-      return sum + p.amount;
-    }
-    return sum;
-  }, 0) || 0;
+  const patientAnnualTotal = useMemo(() => {
+    if (!patientForReceipt) return 0;
+    
+    let total = 0;
+    
+    // Old payments
+    patientForReceipt.payments?.forEach(p => {
+      if (p.date.startsWith(selectedYear)) {
+        total += p.amount;
+      }
+    });
+    
+    // New financeiro records
+    patientForReceipt.financeiro?.forEach((record: any) => {
+      if (record.recordType === 'payment' && record.date.startsWith(selectedYear)) {
+        total += record.amount;
+      }
+    });
+    
+    return total;
+  }, [patientForReceipt, selectedYear]);
 
   return (
     <div className={`max-w-5xl mx-auto space-y-6 ${printMode ? 'print:space-y-0' : ''}`}>
@@ -299,7 +327,7 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
 
           <div className="flex justify-between items-end mt-24">
             <div className="text-slate-600 text-lg">
-              <p>{settings?.address.split('-')[1]?.trim() || 'Local'}, {formatDateLong(getLocalDateString())}</p>
+              <p>{settings?.address?.split('-')?.[1]?.trim() || 'Local'}, {formatDateLong(getLocalDateString())}</p>
             </div>
             <div className="text-center w-80">
               <div className="border-t-2 border-slate-800 pt-4">

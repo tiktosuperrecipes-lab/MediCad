@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Save, Building2 } from 'lucide-react';
 import { ClinicSettings, getSettings, saveSettings } from '../lib/settings';
 
-export default function Settings() {
+interface SettingsProps {
+  onSave?: () => void;
+}
+
+export default function Settings({ onSave }: SettingsProps) {
   const [settings, setSettings] = useState<ClinicSettings>({
     name: '',
     address: '',
@@ -14,14 +18,23 @@ export default function Settings() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setSettings(getSettings());
+    const loadSettings = async () => {
+      const data = await getSettings();
+      setSettings(data);
+    };
+    loadSettings();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveSettings(settings);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    try {
+      await saveSettings(settings);
+      setSaved(true);
+      if (onSave) onSave();
+      setTimeout(() => setSaved(false), 3000);
+    } catch (error) {
+      console.error("Erro ao salvar configurações:", error);
+    }
   };
 
   return (

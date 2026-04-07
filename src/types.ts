@@ -88,6 +88,7 @@ export interface Patient {
   createdAt: string;
   // CRM & Prontuário
   consultations?: Consultation[];
+  historico_clinico?: string[];
   nextReturn?: string;
 
   // Anamnese Base
@@ -104,4 +105,5 @@ export interface Patient {
   // Financeiro
   budgets?: Budget[];
   payments?: Payment[];
+  financeiro?: (Budget | Payment)[];
 }

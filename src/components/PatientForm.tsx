@@ -26,7 +26,7 @@ const initialFormState: Omit<Patient, 'id' | 'createdAt'> = {
   serviceType: 'Particular',
   insuranceName: '',
   consultationReason: '',
-  consultations: [],
+  historico_clinico: [],
   nextReturn: '',
 };
 

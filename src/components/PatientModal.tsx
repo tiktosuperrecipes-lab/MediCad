@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2 } from 'lucide-react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment } from '../types';
-import { savePatient } from '../lib/storage';
+import { savePatient, addClinicalEvolution, addFinancialRecord } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
 
@@ -89,42 +89,32 @@ export default function PatientModal({
     alert('Anamnese salva com sucesso!');
   };
 
-  const handleSaveConsultation = () => {
+  const handleSaveConsultation = async () => {
     if (!consultationForm.notes.trim()) {
       alert('Por favor, preencha as anotações da consulta.');
       return;
     }
 
-    let nextReturn = patient.nextReturn || '';
-    if (consultationForm.returnPrediction !== 'none') {
-      const d = new Date(consultationForm.date + 'T12:00:00');
-      if (consultationForm.returnPrediction === '15_days') d.setDate(d.getDate() + 15);
-      if (consultationForm.returnPrediction === '30_days') d.setDate(d.getDate() + 30);
-      if (consultationForm.returnPrediction === '6_months') d.setMonth(d.getMonth() + 6);
+    try {
+      // Usando arrayUnion conforme solicitado no PASSO 2
+      await addClinicalEvolution(patient.id, consultationForm.notes);
       
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      nextReturn = `${year}-${month}-${day}`;
+      // Atualizando o estado local para refletir a mudança imediatamente
+      const timestamp = new Date().toLocaleString('pt-BR');
+      const evolutionEntry = `${timestamp}: ${consultationForm.notes}`;
+      
+      const updatedPatient = {
+        ...patient,
+        historico_clinico: [evolutionEntry, ...(patient.historico_clinico || [])]
+      };
+
+      onUpdate(updatedPatient);
+      setShowNewConsultation(false);
+      setConsultationForm({ date: getLocalDateString(), notes: '', returnPrediction: 'none' });
+      alert('Evolução salva com sucesso no Firebase!');
+    } catch (error) {
+      alert('Erro ao salvar evolução no Firebase.');
     }
-
-    const newConsultation: Consultation = {
-      id: crypto.randomUUID(),
-      date: consultationForm.date,
-      notes: consultationForm.notes,
-      returnPrediction: consultationForm.returnPrediction
-    };
-
-    const updatedPatient = {
-      ...patient,
-      consultations: [newConsultation, ...(patient.consultations || [])],
-      nextReturn
-    };
-
-    savePatient(updatedPatient);
-    onUpdate(updatedPatient);
-    setShowNewConsultation(false);
-    setConsultationForm({ date: getLocalDateString(), notes: '', returnPrediction: 'none' });
   };
 
   const handleAddMedication = () => {
@@ -213,7 +203,7 @@ export default function PatientModal({
     setBudgetItems(budgetItems.filter(item => item.id !== id));
   };
 
-  const handleSaveBudget = () => {
+  const handleSaveBudget = async () => {
     if (budgetItems.length === 0) {
       alert('Adicione pelo menos um item ao orçamento.');
       return;
@@ -222,26 +212,32 @@ export default function PatientModal({
     const totalAmount = budgetItems.reduce((sum, item) => sum + item.total, 0);
     const finalAmount = totalAmount - budgetDiscount;
 
-    const newBudget: Budget = {
+    const newBudget: Budget & { recordType: 'budget' } = {
       id: crypto.randomUUID(),
       date: getLocalDateString(),
       items: budgetItems,
       totalAmount,
       discount: budgetDiscount,
       finalAmount,
-      status: 'pending'
+      status: 'pending',
+      recordType: 'budget'
     };
 
-    const updatedPatient = {
-      ...patient,
-      budgets: [newBudget, ...(patient.budgets || [])]
-    };
+    try {
+      await addFinancialRecord(patient.id, newBudget);
+      
+      const updatedPatient = {
+        ...patient,
+        financeiro: [newBudget, ...(patient.financeiro || [])]
+      };
 
-    savePatient(updatedPatient);
-    onUpdate(updatedPatient);
-    setBudgetItems([]);
-    setBudgetDiscount(0);
-    alert('Orçamento salvo com sucesso!');
+      onUpdate(updatedPatient);
+      setBudgetItems([]);
+      setBudgetDiscount(0);
+      alert('Orçamento salvo com sucesso no Firebase!');
+    } catch (error) {
+      alert('Erro ao salvar orçamento no Firebase.');
+    }
   };
 
   const handlePrintCurrentBudget = () => {
@@ -261,42 +257,51 @@ export default function PatientModal({
   const handleDeleteBudget = (id: string) => {
     const updatedPatient = {
       ...patient,
-      budgets: patient.budgets?.filter(b => b.id !== id)
+      budgets: patient.budgets?.filter(b => b.id !== id),
+      financeiro: patient.financeiro?.filter((f: any) => f.id !== id)
     };
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
   };
 
-  const handleSavePayment = () => {
+  const handleSavePayment = async () => {
     if (paymentForm.amount <= 0) {
       alert('O valor do pagamento deve ser maior que zero.');
       return;
     }
 
-    const newPayment: Payment = {
+    const newPayment: Payment & { recordType: 'payment' } = {
       id: crypto.randomUUID(),
       date: getLocalDateString(),
       amount: paymentForm.amount,
       method: paymentForm.method,
       notes: paymentForm.notes,
       receiptIssued: paymentForm.receiptIssued,
-      receiptDate: paymentForm.receiptIssued ? getLocalDateString() : undefined
+      receiptDate: paymentForm.receiptIssued ? getLocalDateString() : undefined,
+      recordType: 'payment'
     };
 
-    const updatedPatient = {
-      ...patient,
-      payments: [newPayment, ...(patient.payments || [])]
-    };
+    try {
+      await addFinancialRecord(patient.id, newPayment);
+      
+      const updatedPatient = {
+        ...patient,
+        financeiro: [newPayment, ...(patient.financeiro || [])]
+      };
 
-    savePatient(updatedPatient);
-    onUpdate(updatedPatient);
-    setPaymentForm({ amount: 0, method: 'pix', notes: '', receiptIssued: false });
+      onUpdate(updatedPatient);
+      setPaymentForm({ amount: 0, method: 'pix', notes: '', receiptIssued: false });
+      alert('Pagamento registrado com sucesso no Firebase!');
+    } catch (error) {
+      alert('Erro ao registrar pagamento no Firebase.');
+    }
   };
 
   const handleDeletePayment = (id: string) => {
     const updatedPatient = {
       ...patient,
-      payments: patient.payments?.filter(p => p.id !== id)
+      payments: patient.payments?.filter(p => p.id !== id),
+      financeiro: patient.financeiro?.filter((f: any) => f.id !== id)
     };
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
@@ -615,26 +620,33 @@ export default function PatientModal({
             )}
 
             <div className={`space-y-6 border-l-2 border-teal-100 pl-4 ml-2 print:border-slate-300 ${printMode !== 'history' && printMode !== 'details' ? 'print:hidden' : ''}`}>
+              {/* Listagem do Histórico Clínico (Novo formato PASSO 2) */}
+              {patient.historico_clinico && patient.historico_clinico.length > 0 && (
+                patient.historico_clinico.map((entry, idx) => (
+                  <div key={`hist-${idx}`} className="relative">
+                    <div className="absolute -left-[25px] top-1.5 h-4 w-4 rounded-full bg-teal-500 border-4 border-white shadow-sm print:border-slate-300 print:bg-slate-800"></div>
+                    <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm print:shadow-none print:border-slate-300 print:p-4">
+                      <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">
+                        {entry}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {/* Listagem das Consultas (Formato antigo para compatibilidade) */}
               {patient.consultations && patient.consultations.length > 0 ? (
                 patient.consultations.map(c => (
                   <div key={c.id} className="relative">
-                    <div className="absolute -left-[25px] top-1.5 h-4 w-4 rounded-full bg-teal-500 border-4 border-white shadow-sm print:border-slate-300 print:bg-slate-800"></div>
-                    <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm print:shadow-none print:border-slate-300 print:p-4">
+                    <div className="absolute -left-[25px] top-1.5 h-4 w-4 rounded-full bg-slate-400 border-4 border-white shadow-sm print:border-slate-300 print:bg-slate-800"></div>
+                    <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm print:shadow-none print:border-slate-300 print:p-4 opacity-75">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-2">
                         <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-teal-600 print:text-slate-800" />
+                          <Calendar className="h-4 w-4 text-slate-500 print:text-slate-800" />
                           <span className="font-semibold text-slate-800">
-                            {formatDateShort(c.date)}
+                            {formatDateShort(c.date)} (Antigo)
                           </span>
                         </div>
-                        {c.returnPrediction !== 'none' && (
-                          <span className="text-xs font-medium px-2.5 py-1 bg-amber-50 text-amber-700 rounded-md print:border print:border-amber-200 print:bg-transparent">
-                            Retorno: {
-                              c.returnPrediction === '15_days' ? '15 dias' :
-                              c.returnPrediction === '30_days' ? '30 dias' : '6 meses'
-                            }
-                          </span>
-                        )}
                       </div>
                       <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">
                         {c.notes}
@@ -643,9 +655,11 @@ export default function PatientModal({
                   </div>
                 ))
               ) : (
-                <div className="text-slate-500 py-8 print:hidden">
-                  Nenhuma evolução registrada.
-                </div>
+                (!patient.historico_clinico || patient.historico_clinico.length === 0) && (
+                  <div className="text-slate-500 py-8 print:hidden">
+                    Nenhuma evolução registrada.
+                  </div>
+                )
               )}
             </div>
           </div>
@@ -881,7 +895,9 @@ export default function PatientModal({
               </div>
 
               {(() => {
-                const budgetToPrint = printBudgetId ? patient.budgets?.find(b => b.id === printBudgetId) : null;
+                const budgetToPrint = printBudgetId 
+                  ? (patient.budgets?.find(b => b.id === printBudgetId) || (patient.financeiro?.find(f => (f as any).id === printBudgetId && (f as any).recordType === 'budget') as Budget))
+                  : null;
                 const displayItems = budgetToPrint ? budgetToPrint.items : budgetItems;
                 const displayDiscount = budgetToPrint ? budgetToPrint.discount : budgetDiscount;
                 
@@ -1037,18 +1053,195 @@ export default function PatientModal({
               <div className={`space-y-6 ${printMode === 'receipt' ? 'print:mt-0' : ''}`}>
                 <h4 className="font-semibold text-slate-800 print:hidden">Histórico Financeiro</h4>
                 
-                {(!patient.budgets?.length && !patient.payments?.length) ? (
+                {(!patient.budgets?.length && !patient.payments?.length && !patient.financeiro?.length) ? (
                   <p className="text-slate-500 text-center py-8 bg-slate-50 rounded-lg border border-slate-200">
                     Nenhum registro financeiro encontrado.
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {/* Pagamentos */}
+                    {/* Registros do Firebase (Novo formato PASSO 3) */}
+                    {patient.financeiro?.map((record: any) => {
+                      if (record.recordType === 'payment') {
+                        const payment = record as Payment;
+                        return (
+                          <div key={payment.id} className={`flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-green-500 ${printMode === 'receipt' && printReceiptPaymentId !== payment.id ? 'print:hidden' : ''} ${printMode === 'receipt' && printReceiptPaymentId === payment.id ? 'print:block print:border-none print:p-0 print:shadow-none' : ''}`}>
+                            <div className="print:hidden">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900">Pagamento Recebido (Firebase)</span>
+                                <span className="text-sm text-slate-500">
+                                  {formatDateShort(payment.date)}
+                                </span>
+                              </div>
+                              <div className="text-sm text-slate-600 mt-1 flex items-center gap-2">
+                                <span className="capitalize">{payment.method}</span>
+                                {payment.notes && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{payment.notes}</span>
+                                  </>
+                                )}
+                                {payment.receiptIssued && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-50 text-teal-700 rounded text-[10px] font-bold uppercase tracking-wider border border-teal-100">
+                                      Recibo Emitido {payment.receiptDate && `(${formatDateShort(payment.receiptDate)})`}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Receipt Print View */}
+                            <div className={`hidden ${printMode === 'receipt' && printReceiptPaymentId === payment.id ? 'print:block w-full' : ''}`}>
+                              <div className="text-center mb-8">
+                                <h2 className="text-2xl font-bold text-slate-900 uppercase tracking-wider">Recibo</h2>
+                                <p className="text-slate-500 mt-1">Nº {payment.id.substring(0, 8).toUpperCase()}</p>
+                              </div>
+                              
+                              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mb-8">
+                                <div className="flex justify-between items-center mb-6 border-b border-slate-200 pb-6">
+                                  <span className="text-lg text-slate-600">Valor Recebido:</span>
+                                  <span className="text-3xl font-bold text-slate-900">
+                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}
+                                  </span>
+                                </div>
+                                
+                                <div className="space-y-4 text-slate-800 leading-relaxed">
+                                  <p>
+                                    Recebi(emos) de <strong>{patient.fullName}</strong>, 
+                                    {patient.cpf ? ` inscrito(a) no CPF sob o nº ${patient.cpf},` : ''} 
+                                    a importância supra de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}, 
+                                    referente a serviços prestados em saúde.
+                                  </p>
+                                  {payment.notes && (
+                                    <p><strong>Referente a:</strong> {payment.notes}</p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex justify-between items-end mt-16">
+                                <div className="text-slate-600">
+                                  <p>{settings?.address?.split('-')?.[1]?.trim() || 'Local'}, {formatDateLong(payment.date)}</p>
+                                </div>
+                                <div className="text-center w-64">
+                                  <div className="border-t border-slate-800 pt-2">
+                                    <p className="font-bold text-slate-900">{settings?.doctorName || 'Nome do Profissional'}</p>
+                                    <p className="text-sm text-slate-600">{settings?.crm || 'CRM/CRO'}</p>
+                                    {settings?.cpf && <p className="text-sm text-slate-600">CPF: {settings.cpf}</p>}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 print:hidden">
+                              <div className="text-lg font-bold text-green-600">
+                                + {formatCurrency(payment.amount)}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    if (!payment.receiptIssued) {
+                                      const updatedPatient = {
+                                        ...patient,
+                                        financeiro: patient.financeiro?.map((f: any) => 
+                                          (f.id === payment.id && f.recordType === 'payment')
+                                            ? { ...f, receiptIssued: true, receiptDate: getLocalDateString() } 
+                                            : f
+                                        )
+                                      };
+                                      savePatient(updatedPatient);
+                                      onUpdate(updatedPatient);
+                                    }
+                                    setPrintReceiptPaymentId(payment.id);
+                                    handlePrint('receipt', () => setPrintReceiptPaymentId(null));
+                                  }}
+                                  className={`p-2 rounded-lg transition-colors ${payment.receiptIssued ? 'text-teal-600 bg-teal-50 hover:bg-teal-100' : 'text-slate-400 hover:text-teal-600 hover:bg-teal-50'}`}
+                                  title={payment.receiptIssued ? "Reimprimir Recibo" : "Imprimir Recibo"}
+                                >
+                                  <Printer className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const updatedPatient = {
+                                      ...patient,
+                                      financeiro: patient.financeiro?.filter((f: any) => f.id !== payment.id)
+                                    };
+                                    savePatient(updatedPatient);
+                                    onUpdate(updatedPatient);
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Excluir Pagamento"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      } else if (record.recordType === 'budget') {
+                        const budget = record as Budget;
+                        return (
+                          <div key={budget.id} className={`p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-blue-500 ${printMode === 'receipt' ? 'print:hidden' : ''}`}>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900">Orçamento Gerado (Firebase)</span>
+                                <span className="text-sm text-slate-500">
+                                  {formatDateShort(budget.date)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg font-bold text-blue-600">
+                                  {formatCurrency(budget.finalAmount)}
+                                </span>
+                                <button
+                                  onClick={() => handlePrintSavedBudget(budget.id)}
+                                  className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                                  title="Imprimir Orçamento"
+                                >
+                                  <Printer className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const updatedPatient = {
+                                      ...patient,
+                                      financeiro: patient.financeiro?.filter((f: any) => f.id !== budget.id)
+                                    };
+                                    savePatient(updatedPatient);
+                                    onUpdate(updatedPatient);
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Excluir Orçamento"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                            <div className="text-sm text-slate-600 mt-2">
+                              <ul className="list-disc list-inside space-y-1">
+                                {budget.items.map((item, idx) => (
+                                  <li key={idx} className="truncate">
+                                    {item.quantity}x {item.description} - {formatCurrency(item.unitPrice)}
+                                  </li>
+                                ))}
+                              </ul>
+                              {budget.discount > 0 && (
+                                <div className="mt-2 text-red-500 font-medium">
+                                  Desconto aplicado: {formatCurrency(budget.discount)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
+
+                    {/* Pagamentos Antigos (Compatibilidade) */}
                     {patient.payments?.map((payment) => (
-                      <div key={payment.id} className={`flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-green-500 ${printMode === 'receipt' && printReceiptPaymentId !== payment.id ? 'print:hidden' : ''} ${printMode === 'receipt' && printReceiptPaymentId === payment.id ? 'print:block print:border-none print:p-0 print:shadow-none' : ''}`}>
+                      <div key={payment.id} className={`flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-slate-400 opacity-75 ${printMode === 'receipt' && printReceiptPaymentId !== payment.id ? 'print:hidden' : ''} ${printMode === 'receipt' && printReceiptPaymentId === payment.id ? 'print:block print:border-none print:p-0 print:shadow-none' : ''}`}>
                         <div className="print:hidden">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-900">Pagamento Recebido</span>
+                            <span className="font-bold text-slate-900">Pagamento Recebido (Antigo)</span>
                             <span className="text-sm text-slate-500">
                               {formatDateShort(payment.date)}
                             </span>
@@ -1061,84 +1254,21 @@ export default function PatientModal({
                                 <span>{payment.notes}</span>
                               </>
                             )}
-                            {payment.receiptIssued && (
-                              <>
-                                <span>•</span>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-50 text-teal-700 rounded text-[10px] font-bold uppercase tracking-wider border border-teal-100">
-                                  Recibo Emitido {payment.receiptDate && `(${formatDateShort(payment.receiptDate)})`}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Receipt Print View */}
-                        <div className={`hidden ${printMode === 'receipt' && printReceiptPaymentId === payment.id ? 'print:block w-full' : ''}`}>
-                          <div className="text-center mb-8">
-                            <h2 className="text-2xl font-bold text-slate-900 uppercase tracking-wider">Recibo</h2>
-                            <p className="text-slate-500 mt-1">Nº {payment.id.substring(0, 8).toUpperCase()}</p>
-                          </div>
-                          
-                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mb-8">
-                            <div className="flex justify-between items-center mb-6 border-b border-slate-200 pb-6">
-                              <span className="text-lg text-slate-600">Valor Recebido:</span>
-                              <span className="text-3xl font-bold text-slate-900">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}
-                              </span>
-                            </div>
-                            
-                            <div className="space-y-4 text-slate-800 leading-relaxed">
-                              <p>
-                                Recebi(emos) de <strong>{patient.fullName}</strong>, 
-                                {patient.cpf ? ` inscrito(a) no CPF sob o nº ${patient.cpf},` : ''} 
-                                a importância supra de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}, 
-                                referente a serviços prestados em saúde.
-                              </p>
-                              {payment.notes && (
-                                <p><strong>Referente a:</strong> {payment.notes}</p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex justify-between items-end mt-16">
-                            <div className="text-slate-600">
-                              <p>{settings?.address.split('-')[1]?.trim() || 'Local'}, {formatDateLong(payment.date)}</p>
-                            </div>
-                            <div className="text-center w-64">
-                              <div className="border-t border-slate-800 pt-2">
-                                <p className="font-bold text-slate-900">{settings?.doctorName || 'Nome do Profissional'}</p>
-                                <p className="text-sm text-slate-600">{settings?.crm || 'CRM/CRO'}</p>
-                                {settings?.cpf && <p className="text-sm text-slate-600">CPF: {settings.cpf}</p>}
-                              </div>
-                            </div>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-4 print:hidden">
-                          <div className="text-lg font-bold text-green-600">
+                          <div className="text-lg font-bold text-slate-500">
                             + {formatCurrency(payment.amount)}
                           </div>
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => {
-                                // Mark as issued if not already
-                                if (!payment.receiptIssued) {
-                                  const updatedPatient = {
-                                    ...patient,
-                                    payments: patient.payments?.map(p => 
-                                      p.id === payment.id 
-                                        ? { ...p, receiptIssued: true, receiptDate: getLocalDateString() } 
-                                        : p
-                                    )
-                                  };
-                                  savePatient(updatedPatient);
-                                  onUpdate(updatedPatient);
-                                }
                                 setPrintReceiptPaymentId(payment.id);
                                 handlePrint('receipt', () => setPrintReceiptPaymentId(null));
                               }}
-                              className={`p-2 rounded-lg transition-colors ${payment.receiptIssued ? 'text-teal-600 bg-teal-50 hover:bg-teal-100' : 'text-slate-400 hover:text-teal-600 hover:bg-teal-50'}`}
-                              title={payment.receiptIssued ? "Reimprimir Recibo" : "Imprimir Recibo"}
+                              className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                              title="Imprimir Recibo"
                             >
                               <Printer className="h-4 w-4" />
                             </button>
@@ -1154,18 +1284,18 @@ export default function PatientModal({
                       </div>
                     ))}
 
-                    {/* Orçamentos Salvos */}
+                    {/* Orçamentos Antigos (Compatibilidade) */}
                     {patient.budgets?.map((budget) => (
-                      <div key={budget.id} className={`p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-blue-500 ${printMode === 'receipt' ? 'print:hidden' : ''}`}>
+                      <div key={budget.id} className={`p-4 bg-white border border-slate-200 rounded-lg border-l-4 border-l-slate-400 opacity-75 ${printMode === 'receipt' ? 'print:hidden' : ''}`}>
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-900">Orçamento Gerado</span>
+                            <span className="font-bold text-slate-900">Orçamento Gerado (Antigo)</span>
                             <span className="text-sm text-slate-500">
                               {formatDateShort(budget.date)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-lg font-bold text-blue-600">
+                            <span className="text-lg font-bold text-slate-500">
                               {formatCurrency(budget.finalAmount)}
                             </span>
                             <button
@@ -1183,20 +1313,6 @@ export default function PatientModal({
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
-                        </div>
-                        <div className="text-sm text-slate-600 mt-2">
-                          <ul className="list-disc list-inside space-y-1">
-                            {budget.items.map((item, idx) => (
-                              <li key={idx} className="truncate">
-                                {item.quantity}x {item.description} - {formatCurrency(item.unitPrice)}
-                              </li>
-                            ))}
-                          </ul>
-                          {budget.discount > 0 && (
-                            <div className="mt-2 text-red-500 font-medium">
-                              Desconto aplicado: {formatCurrency(budget.discount)}
-                            </div>
-                          )}
                         </div>
                       </div>
                     ))}

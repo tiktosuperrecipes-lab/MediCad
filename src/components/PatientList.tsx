@@ -62,24 +62,22 @@ export default function PatientList({
               // Merge arrays safely for backward compatibility
               mergedPatients[existingIndex] = {
                 ...importedPatient,
-                consultations: importedPatient.consultations || mergedPatients[existingIndex].consultations || [],
+                historico_clinico: importedPatient.historico_clinico || mergedPatients[existingIndex].historico_clinico || [],
                 prescriptions: importedPatient.prescriptions || mergedPatients[existingIndex].prescriptions || [],
                 examRequests: importedPatient.examRequests || mergedPatients[existingIndex].examRequests || [],
                 certificates: importedPatient.certificates || mergedPatients[existingIndex].certificates || [],
-                budgets: importedPatient.budgets || mergedPatients[existingIndex].budgets || [],
-                payments: importedPatient.payments || mergedPatients[existingIndex].payments || [],
+                financeiro: importedPatient.financeiro || mergedPatients[existingIndex].financeiro || [],
               };
               updated++;
             } else {
               // Ensure new patients have the arrays even if from old backup
               mergedPatients.push({
                 ...importedPatient,
-                consultations: importedPatient.consultations || [],
+                historico_clinico: importedPatient.historico_clinico || [],
                 prescriptions: importedPatient.prescriptions || [],
                 examRequests: importedPatient.examRequests || [],
                 certificates: importedPatient.certificates || [],
-                budgets: importedPatient.budgets || [],
-                payments: importedPatient.payments || [],
+                financeiro: importedPatient.financeiro || [],
               });
               added++;
             }
@@ -198,10 +196,10 @@ export default function PatientList({
                       {formatDateShort(patient.birthDate)}
                     </div>
                   )}
-                  {patient.consultations && patient.consultations.length > 0 && (
+                  {patient.historico_clinico && patient.historico_clinico.length > 0 && (
                     <div className="flex items-center text-sm text-slate-600 mt-2">
                       <Activity className="h-4 w-4 mr-2 text-teal-500" />
-                      <span className="text-teal-700 font-medium">{patient.consultations.length} {patient.consultations.length === 1 ? 'consulta registrada' : 'consultas registradas'}</span>
+                      <span className="text-teal-700 font-medium">{patient.historico_clinico.length} {patient.historico_clinico.length === 1 ? 'consulta registrada' : 'consultas registradas'}</span>
                     </div>
                   )}
                   {patient.nextReturn && (
