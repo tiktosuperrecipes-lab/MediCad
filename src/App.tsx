@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Activity, Users, UserPlus, Settings as SettingsIcon, DollarSign, Calendar } from 'lucide-react';
+import { Activity, Users, UserPlus, Settings as SettingsIcon, DollarSign, Calendar, MessageSquare } from 'lucide-react';
 import PatientForm from './components/PatientForm';
 import PatientList from './components/PatientList';
 import Settings from './components/Settings';
 import FinancialDashboard from './components/FinancialDashboard';
 import Agenda from './components/Agenda';
+import ReturnsList from './components/ReturnsList';
 import Login from './components/Login';
 import { Patient } from './types';
 import { getPatients } from './lib/storage';
@@ -12,7 +13,7 @@ import { getSettings, ClinicSettings } from './lib/settings';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'form' | 'list' | 'settings' | 'financial' | 'agenda'>('agenda');
+  const [activeTab, setActiveTab] = useState<'form' | 'list' | 'settings' | 'financial' | 'agenda' | 'returns'>('agenda');
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [clinicSettings, setClinicSettings] = useState<ClinicSettings | null>(null);
@@ -38,13 +39,13 @@ export default function App() {
     return <Login onLogin={() => setIsAuthenticated(true)} />;
   }
 
-  const handleTabChange = (tab: 'form' | 'list' | 'settings' | 'financial' | 'agenda') => {
+  const handleTabChange = (tab: 'form' | 'list' | 'settings' | 'financial' | 'agenda' | 'returns') => {
     setActiveTab(tab);
     if (tab !== 'form') {
       setEditingPatient(null);
     }
-    // Refresh patients when switching to list, financial or agenda to ensure data is up to date
-    if (tab === 'list' || tab === 'financial' || tab === 'agenda') {
+    // Refresh patients when switching to list, financial, agenda or returns to ensure data is up to date
+    if (tab === 'list' || tab === 'financial' || tab === 'agenda' || tab === 'returns') {
       refreshPatients();
     }
   };
@@ -100,6 +101,15 @@ export default function App() {
                 <span className="hidden sm:inline">Pacientes</span>
               </button>
               <button
+                onClick={() => handleTabChange('returns')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'returns' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
+                }`}
+              >
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">Retornos</span>
+              </button>
+              <button
                 onClick={() => handleTabChange('financial')}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   activeTab === 'financial' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
@@ -153,6 +163,8 @@ export default function App() {
           </div>
         ) : activeTab === 'agenda' ? (
           <Agenda patients={patients} />
+        ) : activeTab === 'returns' ? (
+          <ReturnsList patients={patients} clinicSettings={clinicSettings} />
         ) : activeTab === 'financial' ? (
           <FinancialDashboard patients={patients} />
         ) : (

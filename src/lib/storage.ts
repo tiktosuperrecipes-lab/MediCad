@@ -347,11 +347,13 @@ export async function updateGlobalFinancialRecordReceipt(id: string, receiptIssu
         if (patientData.financeiro) {
           const updatedFinanceiro = patientData.financeiro.map((item: any) => {
             if (item.id === id) {
-              return { 
+              const updatedItem = { 
                 ...item, 
                 receiptIssued,
-                receiptDate: receiptIssued ? getLocalDateString() : undefined
+                receiptDate: receiptIssued ? getLocalDateString() : null
               };
+              // Remove undefined keys if any
+              return JSON.parse(JSON.stringify(updatedItem));
             }
             return item;
           });

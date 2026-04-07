@@ -51,18 +51,16 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
   };
 
   // Calculate totals for cashflow
-  const { pendingTotal, receivedTotal, unifiedPendingRecords, unifiedReceivedRecords } = useMemo(() => {
+  const { pendingTotal, receivedTotal, unifiedPendingRecords, unifiedReceivedRecords, monthlyIncome, monthlyDeclaredIncome } = useMemo(() => {
     const currentMonthPrefix = `${selectedYear}-${selectedMonth}`;
     
     // Usar um Map para evitar duplicados entre globalRecords e patient records
-    const pendingMap = new Map<string, any>();
-    const receivedMap = new Map<string, any>();
+    const allRecordsMap = new Map<string, any>();
     
-    // 1. Adicionar registros globais
+    // 1. Adicionar registros globais (têm prioridade de status)
     globalRecords.forEach(record => {
       if (record.date.startsWith(currentMonthPrefix)) {
-        if (record.status === 'Pendente') pendingMap.set(record.id, record);
-        else receivedMap.set(record.id, record);
+        allRecordsMap.set(record.id, record);
       }
     });
     
@@ -70,79 +68,81 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
     patients.forEach(patient => {
       patient.financeiro?.forEach((record: any) => {
         if (record.recordType === 'payment' && record.date.startsWith(currentMonthPrefix)) {
-          const unifiedRecord = {
-            id: record.id,
-            patientId: patient.id,
-            patientName: patient.fullName,
-            date: record.date,
-            amount: record.amount,
-            method: record.method,
-            procedure: record.notes || 'Pagamento registrado no prontuário',
-            status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
-            receiptIssued: record.receiptIssued || false
-          };
-          
-          if (unifiedRecord.status === 'Pago') {
-            if (!receivedMap.has(record.id)) receivedMap.set(record.id, unifiedRecord);
+          // Se já existe no mapa (veio do global), não sobrescrevemos para manter o status mais atual
+          if (!allRecordsMap.has(record.id)) {
+            const unifiedRecord = {
+              id: record.id,
+              patientId: patient.id,
+              patientName: patient.fullName,
+              date: record.date,
+              amount: record.amount,
+              method: record.method,
+              procedure: record.notes || 'Pagamento registrado no prontuário',
+              status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
+              receiptIssued: record.receiptIssued || false
+            };
+            allRecordsMap.set(record.id, unifiedRecord);
           } else {
-            if (!pendingMap.has(record.id)) pendingMap.set(record.id, unifiedRecord);
+            // Se já existe, garantimos que o receiptIssued esteja sincronizado se o global estiver desatualizado
+            const existing = allRecordsMap.get(record.id);
+            if (record.receiptIssued !== undefined && record.receiptIssued !== existing.receiptIssued) {
+              allRecordsMap.set(record.id, { ...existing, receiptIssued: record.receiptIssued });
+            }
           }
         }
       });
     });
     
-    const pendingList = Array.from(pendingMap.values());
-    const receivedList = Array.from(receivedMap.values());
+    const allRecords = Array.from(allRecordsMap.values());
+    const pendingList = allRecords.filter(r => r.status === 'Pendente');
+    const receivedList = allRecords.filter(r => r.status === 'Pago');
     
     return { 
       pendingTotal: pendingList.reduce((sum, r) => sum + r.amount, 0), 
       receivedTotal: receivedList.reduce((sum, r) => sum + r.amount, 0),
       unifiedPendingRecords: pendingList,
-      unifiedReceivedRecords: receivedList
+      unifiedReceivedRecords: receivedList,
+      monthlyIncome: receivedList.reduce((sum, r) => sum + r.amount, 0),
+      monthlyDeclaredIncome: receivedList.filter(r => r.receiptIssued).reduce((sum, r) => sum + r.amount, 0)
     };
   }, [globalRecords, patients, selectedYear, selectedMonth]);
 
-  // Calculate total income for the selected month/year
-  const { monthlyIncome, monthlyDeclaredIncome } = useMemo(() => {
-    let total = 0;
-    let declared = 0;
-    patients.forEach(patient => {
-      patient.payments?.forEach(payment => {
-        if (payment.date.startsWith(`${selectedYear}-${selectedMonth}`)) {
-          total += payment.amount;
-          if (payment.receiptIssued) declared += payment.amount;
-        }
-      });
-      patient.financeiro?.forEach((record: any) => {
-        if (record.recordType === 'payment' && record.date.startsWith(`${selectedYear}-${selectedMonth}`)) {
-          total += record.amount;
-          if (record.receiptIssued) declared += record.amount;
-        }
-      });
-    });
-    return { monthlyIncome: total, monthlyDeclaredIncome: declared };
-  }, [patients, selectedYear, selectedMonth]);
-
   // Calculate annual income for the selected year
   const { annualIncome, annualDeclaredIncome } = useMemo(() => {
-    let total = 0;
-    let declared = 0;
+    const allRecordsMap = new Map<string, any>();
+    
+    // 1. Global
+    globalRecords.forEach(record => {
+      if (record.date.startsWith(selectedYear)) {
+        allRecordsMap.set(record.id, record);
+      }
+    });
+    
+    // 2. Patients
     patients.forEach(patient => {
-      patient.payments?.forEach(payment => {
-        if (payment.date.startsWith(selectedYear)) {
-          total += payment.amount;
-          if (payment.receiptIssued) declared += payment.amount;
-        }
-      });
       patient.financeiro?.forEach((record: any) => {
         if (record.recordType === 'payment' && record.date.startsWith(selectedYear)) {
-          total += record.amount;
-          if (record.receiptIssued) declared += record.amount;
+          if (!allRecordsMap.has(record.id)) {
+            const unifiedRecord = {
+              id: record.id,
+              status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
+              amount: record.amount,
+              receiptIssued: record.receiptIssued || false
+            };
+            allRecordsMap.set(record.id, unifiedRecord);
+          }
         }
       });
     });
-    return { annualIncome: total, annualDeclaredIncome: declared };
-  }, [patients, selectedYear]);
+
+    const allRecords = Array.from(allRecordsMap.values());
+    const paidRecords = allRecords.filter(r => r.status === 'Pago');
+
+    return { 
+      annualIncome: paidRecords.reduce((sum, r) => sum + r.amount, 0), 
+      annualDeclaredIncome: paidRecords.filter(r => r.receiptIssued).reduce((sum, r) => sum + r.amount, 0) 
+    };
+  }, [globalRecords, patients, selectedYear]);
 
   const taxCalc = calculateMonthlyIR(monthlyDeclaredIncome, deductibleExpenses);
 
