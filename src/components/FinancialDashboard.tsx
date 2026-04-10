@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Calculator, DollarSign, TrendingUp, TrendingDown, FileText, AlertCircle, Printer, Download, CheckCircle, Clock } from 'lucide-react';
+import { motion } from 'motion/react';
 import { Patient, GlobalFinancialRecord } from '../types';
 import { calculateMonthlyIR } from '../lib/taxCalculator';
 import { getSettings, ClinicSettings } from '../lib/settings';
@@ -8,9 +9,10 @@ import { savePatient, getGlobalFinancialRecords, updateGlobalFinancialRecordStat
 
 interface FinancialDashboardProps {
   patients: Patient[];
+  onRefresh?: () => void;
 }
 
-export default function FinancialDashboard({ patients }: FinancialDashboardProps) {
+export default function FinancialDashboard({ patients, onRefresh }: FinancialDashboardProps) {
   const todayStr = getLocalDateString();
   const [tYear, tMonth] = todayStr.split('-');
   const [selectedYear, setSelectedYear] = useState(tYear);
@@ -36,6 +38,7 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
     try {
       await updateGlobalFinancialRecordStatus(id, status);
       await loadGlobalRecords();
+      onRefresh?.();
     } catch (error) {
       alert('Erro ao atualizar status.');
     }
@@ -45,6 +48,7 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
     try {
       await updateGlobalFinancialRecordReceipt(id, !currentStatus);
       await loadGlobalRecords();
+      onRefresh?.();
     } catch (error) {
       alert('Erro ao atualizar recibo.');
     }
@@ -256,34 +260,56 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
   const handleDeclareAllForPatient = async () => {
     if (!patientForReceipt) return;
     
-    const updatedPatient = { ...patientForReceipt };
-    
-    // Update old payments
-    if (updatedPatient.payments) {
-      updatedPatient.payments = updatedPatient.payments.map(p => {
-        if (p.date.startsWith(selectedYear)) {
-          return { ...p, receiptIssued: true };
+    try {
+      // Update old payments
+      if (patientForReceipt.payments) {
+        for (const p of patientForReceipt.payments) {
+          if (p.date.startsWith(selectedYear) && !p.receiptIssued) {
+            await updateGlobalFinancialRecordReceipt(p.id, true);
+          }
         }
-        return p;
-      });
-    }
-    
-    // Update new financeiro records
-    if (updatedPatient.financeiro) {
-      updatedPatient.financeiro = updatedPatient.financeiro.map((record: any) => {
-        if (record.recordType === 'payment' && record.date.startsWith(selectedYear)) {
-          return { ...record, receiptIssued: true };
+      }
+      
+      // Update new financeiro records
+      if (patientForReceipt.financeiro) {
+        for (const record of patientForReceipt.financeiro) {
+          if ((record as any).recordType === 'payment' && record.date.startsWith(selectedYear) && !(record as any).receiptIssued) {
+            await updateGlobalFinancialRecordReceipt(record.id, true);
+          }
         }
-        return record;
-      });
+      }
+      
+      await loadGlobalRecords();
+      onRefresh?.();
+      alert('Todos os pagamentos deste paciente no ano selecionado foram marcados como declarados.');
+    } catch (error) {
+      console.error("Erro ao declarar pagamentos:", error);
+      alert('Erro ao atualizar alguns pagamentos.');
     }
-    
-    await savePatient(updatedPatient);
-    alert('Todos os pagamentos deste paciente no ano selecionado foram marcados como declarados.');
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
 
   return (
-    <div className={`max-w-5xl mx-auto space-y-6 ${printMode ? 'print:space-y-0' : ''}`}>
+    <motion.div 
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className={`max-w-5xl mx-auto space-y-6 ${printMode ? 'print:space-y-0' : ''}`}
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Financeiro</h2>
@@ -332,10 +358,15 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
       </div>
 
       {activeSubTab === 'cashflow' ? (
-        <div className="space-y-6">
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="space-y-6"
+        >
           {/* Cashflow Summary */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <motion.div variants={itemVariants} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
                   <TrendingUp className="h-5 w-5" />
@@ -346,9 +377,9 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receivedTotal)}
               </p>
               <p className="text-xs text-slate-500 mt-1">Total de pagamentos com status 'Pago'</p>
-            </div>
+            </motion.div>
 
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <motion.div variants={itemVariants} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
                   <Clock className="h-5 w-5" />
@@ -359,13 +390,13 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pendingTotal)}
               </p>
               <p className="text-xs text-slate-500 mt-1">Total de pagamentos com status 'Pendente'</p>
-            </div>
+            </motion.div>
           </div>
 
           {/* Lists */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Contas a Receber */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <motion.div variants={itemVariants} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <Clock className="h-4 w-4 text-amber-500" />
@@ -400,10 +431,10 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
                   <div className="p-8 text-center text-slate-500 italic text-sm">Nenhum pagamento pendente este mês.</div>
                 )}
               </div>
-            </div>
+            </motion.div>
 
             {/* Contas Recebidas */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <motion.div variants={itemVariants} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-emerald-500" />
@@ -444,13 +475,18 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
                   <div className="p-8 text-center text-slate-500 italic text-sm">Nenhum pagamento recebido este mês.</div>
                 )}
               </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
       ) : (
-        <div className="space-y-6">
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="space-y-6"
+        >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <motion.div variants={itemVariants} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-teal-100 text-teal-600 rounded-lg">
               <DollarSign className="h-5 w-5" />
@@ -466,9 +502,9 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             </p>
             <p className="text-xs text-slate-500">Base para o Carnê-Leão</p>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <motion.div variants={itemVariants} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
               <Calculator className="h-5 w-5" />
@@ -481,9 +517,9 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
           <p className="text-sm text-slate-500 mt-1">
             Alíquota efetiva: {taxCalc.effectiveRate.toFixed(2)}%
           </p>
-        </div>
+        </motion.div>
 
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <motion.div variants={itemVariants} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
               <TrendingUp className="h-5 w-5" />
@@ -499,10 +535,10 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             </p>
             <p className="text-xs text-slate-500">Total com recibo no ano</p>
           </div>
-        </div>
+        </motion.div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:hidden">
+      <motion.div variants={itemVariants} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:hidden">
         <div className="p-6 border-b border-slate-200">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <FileText className="h-5 w-5 text-slate-500" />
@@ -577,10 +613,10 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Recibo Anual (IR) */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:hidden">
+      <motion.div variants={itemVariants} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:hidden">
         <div className="p-6 border-b border-slate-200">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <Download className="h-5 w-5 text-slate-500" />
@@ -655,8 +691,8 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )}
 
   {/* Print View for Annual Receipt */}
@@ -694,6 +730,6 @@ export default function FinancialDashboard({ patients }: FinancialDashboardProps
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

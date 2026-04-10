@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Building2, Trash2, ShieldAlert, Lock, AlertTriangle, DollarSign } from 'lucide-react';
+import { motion } from 'motion/react';
 import { ClinicSettings, getSettings, saveSettings } from '../lib/settings';
 import { resetCollection, clearPatientClinicalData } from '../lib/storage';
 
@@ -83,7 +84,12 @@ export default function Settings({ onSave }: SettingsProps) {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <motion.div 
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="max-w-3xl mx-auto space-y-6"
+    >
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center gap-2">
           <Building2 className="h-5 w-5 text-slate-500" />
@@ -213,7 +219,12 @@ export default function Settings({ onSave }: SettingsProps) {
       </div>
 
       {/* Seção de Reset de Dados */}
-      <div className="bg-white rounded-xl shadow-sm border border-rose-200 overflow-hidden">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-white rounded-xl shadow-sm border border-rose-200 overflow-hidden"
+      >
         <div className="bg-rose-50 px-6 py-4 border-b border-rose-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShieldAlert className="h-5 w-5 text-rose-600" />
@@ -332,7 +343,7 @@ export default function Settings({ onSave }: SettingsProps) {
             )}
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

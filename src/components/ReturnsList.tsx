@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { MessageSquare, Calendar, User, Phone, AlertCircle, Search } from 'lucide-react';
+import { motion } from 'motion/react';
 import { Patient } from '../types';
 import { ClinicSettings } from '../lib/settings';
 
@@ -71,8 +72,28 @@ export default function ReturnsList({ patients, clinicSettings }: ReturnsListPro
     return lastEntry.split(': ')[0].split(' ')[0];
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <div className="space-y-6">
+    <motion.div 
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Inteligência de Retornos</h2>
@@ -91,10 +112,16 @@ export default function ReturnsList({ patients, clinicSettings }: ReturnsListPro
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 gap-4"
+      >
         {filteredPatients.length > 0 ? (
           filteredPatients.map((patient) => (
-            <div 
+            <motion.div 
+              variants={itemVariants}
               key={patient.id}
               className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
@@ -124,10 +151,10 @@ export default function ReturnsList({ patients, clinicSettings }: ReturnsListPro
                 <MessageSquare className="h-4 w-4" />
                 Lembrar no WhatsApp
               </button>
-            </div>
+            </motion.div>
           ))
         ) : (
-          <div className="bg-white p-12 text-center rounded-xl border border-dashed border-slate-300">
+          <motion.div variants={itemVariants} className="bg-white p-12 text-center rounded-xl border border-dashed border-slate-300">
             <div className="inline-flex items-center justify-center h-16 w-16 bg-slate-100 rounded-full text-slate-400 mb-4">
               <AlertCircle className="h-8 w-8" />
             </div>
@@ -135,17 +162,22 @@ export default function ReturnsList({ patients, clinicSettings }: ReturnsListPro
             <p className="text-slate-500 max-w-xs mx-auto">
               Não há pacientes pendentes de retorno preventivo no momento.
             </p>
-          </div>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
 
-      <div className="bg-teal-50 border border-teal-100 p-4 rounded-xl flex items-start gap-3">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-teal-50 border border-teal-100 p-4 rounded-xl flex items-start gap-3"
+      >
         <AlertCircle className="h-5 w-5 text-teal-600 shrink-0 mt-0.5" />
         <div className="text-sm text-teal-800">
           <p className="font-bold">Dica de Pós-Venda:</p>
           <p>Manter o contato preventivo aumenta a fidelização e garante que o paciente realize a manutenção necessária antes que problemas graves apareçam.</p>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

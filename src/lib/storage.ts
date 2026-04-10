@@ -317,8 +317,15 @@ export async function updateGlobalFinancialRecordReceipt(id: string, receiptIssu
       const patients = await getDocs(collection(db, 'pacientes'));
       for (const pDoc of patients.docs) {
         const pData = pDoc.data() as Patient;
-        const found = pData.financeiro?.find((f: any) => f.id === id);
-        if (found && (found as any).recordType === 'payment') {
+        let found = pData.financeiro?.find((f: any) => f.id === id);
+        let isOldPayment = false;
+        
+        if (!found) {
+          found = pData.payments?.find((p: any) => p.id === id);
+          if (found) isOldPayment = true;
+        }
+
+        if (found && (isOldPayment || (found as any).recordType === 'payment')) {
           const payment = found as any;
           patientId = pDoc.id;
           // Se não existia no global, criamos agora
@@ -328,7 +335,7 @@ export async function updateGlobalFinancialRecordReceipt(id: string, receiptIssu
             date: payment.date,
             amount: payment.amount,
             method: payment.method,
-            procedure: payment.notes || 'Pagamento sincronizado',
+            procedure: payment.notes || (isOldPayment ? 'Pagamento antigo' : 'Pagamento sincronizado'),
             status: payment.status || 'Pago',
             receiptIssued,
             createdAt: new Date().toISOString()

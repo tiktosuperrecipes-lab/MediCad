@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto } from '../types';
 import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
@@ -448,9 +449,30 @@ export default function PatientModal({
     setIsEditingPhotoDetails(false);
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm print:static print:p-0 print:bg-white print:block">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible flex flex-col">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible flex flex-col"
+      >
         
         {/* Header */}
         <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between print:hidden">
@@ -531,9 +553,17 @@ export default function PatientModal({
 
         {/* Content */}
         <div className="p-6 sm:p-8 flex-1 print:p-0">
-          
-          {/* TAB 1: Dados Cadastrais e Anamnese Base */}
-          <div className={`${activeTab === 'details' ? 'block' : 'hidden'} ${printMode === 'details' ? 'print:block' : 'print:hidden'} space-y-8`}>
+          <AnimatePresence mode="wait">
+            {/* TAB 1: Dados Cadastrais e Anamnese Base */}
+            {activeTab === 'details' && (
+              <motion.div 
+                key="details"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.2 }}
+                className={`${printMode === 'details' ? 'print:block' : 'print:hidden'} space-y-8`}
+              >
             {/* Dados Pessoais */}
             <section className={printMode !== 'details' ? 'print:hidden' : ''}>
               <div className="flex items-center gap-2 mb-4 text-teal-700 print:text-slate-800 border-b border-slate-100 print:border-slate-300 pb-2">
@@ -670,10 +700,19 @@ export default function PatientModal({
                 </div>
               </div>
             </section>
-          </div>
+          </motion.div>
+          )}
 
           {/* TAB 2: Evolução/Histórico de Consultas */}
-          <div className={`${activeTab === 'history' ? 'block' : 'hidden'} ${printMode === 'history' ? 'print:block' : 'print:hidden'} print:mt-12`}>
+          {activeTab === 'history' && (
+          <motion.div 
+            key="history"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className={`${printMode === 'history' ? 'print:block' : 'print:hidden'} print:mt-12`}
+          >
             <div className={`flex items-center justify-between mb-6 print:hidden ${printMode !== 'history' ? 'hidden' : ''}`}>
               <h3 className="text-lg font-semibold text-slate-800">Histórico de Consultas</h3>
               <div className="flex gap-2">
@@ -892,10 +931,19 @@ export default function PatientModal({
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
+          )}
 
           {/* TAB 3: Receituário e Pedido de Exames */}
-          <div className={`${activeTab === 'prescriptions' ? 'block' : 'hidden'} ${printMode === 'prescription' || printMode === 'exam' ? 'print:block' : 'print:hidden'}`}>
+          {activeTab === 'prescriptions' && (
+          <motion.div 
+            key="prescriptions"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className={`${printMode === 'prescription' || printMode === 'exam' ? 'print:block' : 'print:hidden'}`}
+          >
             
             {/* Receituário */}
             <div className={`mb-12 ${printMode === 'exam' ? 'print:hidden' : ''}`}>
@@ -999,10 +1047,19 @@ export default function PatientModal({
                 {examRequestText}
               </div>
             </div>
-          </div>
+          </motion.div>
+          )}
 
           {/* TAB 4: Atestados */}
-          <div className={`${activeTab === 'certificates' ? 'block' : 'hidden'} ${printMode === 'certificate' ? 'print:block' : 'print:hidden'}`}>
+          {activeTab === 'certificates' && (
+          <motion.div 
+            key="certificates"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className={`${printMode === 'certificate' ? 'print:block' : 'print:hidden'}`}
+          >
             <div className="flex items-center justify-between mb-6 print:hidden">
               <h3 className="text-lg font-semibold text-slate-800">Atestado Odontológico</h3>
               <button 
@@ -1049,10 +1106,19 @@ export default function PatientModal({
               a partir desta data por motivos de tratamento odontológico.
               {certificateForm.cid && <span> CID: <strong>{certificateForm.cid}</strong>.</span>}
             </div>
-          </div>
+          </motion.div>
+          )}
 
           {/* TAB 5: Financeiro */}
-          <div className={`${activeTab === 'financial' ? 'block' : 'hidden'} ${printMode === 'budget' || printMode === 'receipt' ? 'print:block' : 'print:hidden'}`}>
+          {activeTab === 'financial' && (
+          <motion.div 
+            key="financial"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className={`${printMode === 'budget' || printMode === 'receipt' ? 'print:block' : 'print:hidden'}`}
+          >
             
             {/* Orçamentos */}
             <div className={`mb-12 ${printMode === 'receipt' ? 'print:hidden' : ''}`}>
@@ -1623,7 +1689,9 @@ export default function PatientModal({
                 )}
               </div>
             </div>
-          </div>
+          </motion.div>
+          )}
+          </AnimatePresence>
 
           {/* Print Footer */}
           <div className={`hidden ${printMode === 'receipt' ? 'print:hidden' : 'print:block'} mt-32 pt-8 text-center`}>
@@ -1633,7 +1701,7 @@ export default function PatientModal({
           </div>
 
         </div>
-      </div>
+      </motion.div>
 
       {/* Photo Viewer Modal */}
       {viewingPhoto && (() => {

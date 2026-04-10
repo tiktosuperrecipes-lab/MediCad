@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, User, FileText, CheckCircle, X, Plus } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Patient, Appointment } from '../types';
 import { getAppointments, saveAppointment, deleteAppointment } from '../lib/storage';
 import { getLocalDateString } from '../lib/dateUtils';
@@ -145,8 +146,28 @@ export default function Agenda({ patients }: AgendaProps) {
     }
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <div className="max-w-4xl mx-auto">
+    <motion.div 
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="max-w-4xl mx-auto"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Agenda</h2>
@@ -167,13 +188,18 @@ export default function Agenda({ patients }: AgendaProps) {
         {loading ? (
           <div className="p-12 text-center text-slate-500">Carregando agenda...</div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="divide-y divide-slate-100"
+          >
             {timeSlots.map(time => {
               const appointment = appointments.find(a => a.time === time);
               const patient = appointment ? patients.find(p => p.id === appointment.patientId) : null;
 
               return (
-                <div key={time} className="flex group hover:bg-slate-50 transition-colors">
+                <motion.div variants={itemVariants} key={time} className="flex group hover:bg-slate-50 transition-colors">
                   <div className="w-24 py-4 px-6 flex items-center justify-center border-r border-slate-100 bg-slate-50/50">
                     <span className="text-sm font-medium text-slate-600">{time}</span>
                   </div>
@@ -208,18 +234,25 @@ export default function Agenda({ patients }: AgendaProps) {
                       </div>
                     )}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         )}
       </div>
 
       {/* Modal de Agendamento */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-slate-100">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Clock className="h-5 w-5 text-teal-600" />
                 {editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'} - {selectedTime}
@@ -303,9 +336,10 @@ export default function Agenda({ patients }: AgendaProps) {
                 </button>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
-      )}
-    </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Activity, Users, UserPlus, Settings as SettingsIcon, DollarSign, Calendar, MessageSquare } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import PatientForm from './components/PatientForm';
 import PatientList from './components/PatientList';
 import Settings from './components/Settings';
@@ -60,10 +61,16 @@ export default function App() {
     handleTabChange('list');
   };
 
+  const pageVariants = {
+    initial: { opacity: 0, y: 10 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
+    exit: { opacity: 0, y: -10, transition: { duration: 0.2, ease: 'easeIn' } }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Header */}
-      <header className="bg-teal-700 text-white shadow-md print:hidden">
+      <header className="bg-teal-700 text-white shadow-md print:hidden sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
@@ -72,10 +79,10 @@ export default function App() {
                 {clinicSettings?.name || 'MediCad'}
               </h1>
             </div>
-            <nav className="flex gap-2 sm:gap-4">
+            <nav className="flex gap-2 sm:gap-4 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
               <button
                 onClick={() => handleTabChange('agenda')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === 'agenda' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
                 }`}
               >
@@ -84,7 +91,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => handleTabChange('form')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === 'form' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
                 }`}
               >
@@ -93,7 +100,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => handleTabChange('list')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === 'list' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
                 }`}
               >
@@ -102,7 +109,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => handleTabChange('returns')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === 'returns' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
                 }`}
               >
@@ -111,7 +118,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => handleTabChange('financial')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === 'financial' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
                 }`}
               >
@@ -120,7 +127,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => handleTabChange('settings')}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === 'settings' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
                 }`}
               >
@@ -134,49 +141,63 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 print:p-0 print:py-0">
-        {activeTab === 'form' ? (
-          <div className="print:hidden">
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-slate-800">
-                {editingPatient ? 'Editar Paciente' : 'Novo Paciente'}
-              </h2>
-              <p className="text-slate-500">
-                {editingPatient ? 'Atualize os dados do paciente abaixo.' : 'Preencha os dados abaixo para cadastrar um novo paciente.'}
-              </p>
-            </div>
-            <PatientForm 
-              initialData={editingPatient}
-              onSuccess={handleFormSuccess} 
-            />
-          </div>
-        ) : activeTab === 'list' ? (
-          <div>
-            <div className="mb-8 print:hidden">
-              <h2 className="text-2xl font-bold text-slate-800">Lista de Pacientes</h2>
-              <p className="text-slate-500">Gerencie os pacientes cadastrados no sistema.</p>
-            </div>
-            <PatientList 
-              patients={patients} 
-              onEdit={handleEdit} 
-              onRefresh={refreshPatients} 
-            />
-          </div>
-        ) : activeTab === 'agenda' ? (
-          <Agenda patients={patients} />
-        ) : activeTab === 'returns' ? (
-          <ReturnsList patients={patients} clinicSettings={clinicSettings} />
-        ) : activeTab === 'financial' ? (
-          <FinancialDashboard patients={patients} />
-        ) : (
-          <div>
-            <div className="mb-8 print:hidden">
-              <h2 className="text-2xl font-bold text-slate-800">Configurações</h2>
-              <p className="text-slate-500">Personalize os dados da clínica para os cabeçalhos de impressão.</p>
-            </div>
-            <Settings onSave={loadSettings} />
-          </div>
-        )}
+        <AnimatePresence mode="wait">
+          {activeTab === 'form' && (
+            <motion.div key="form" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="print:hidden">
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-slate-800">
+                  {editingPatient ? 'Editar Paciente' : 'Novo Paciente'}
+                </h2>
+                <p className="text-slate-500">
+                  {editingPatient ? 'Atualize os dados do paciente abaixo.' : 'Preencha os dados abaixo para cadastrar um novo paciente.'}
+                </p>
+              </div>
+              <PatientForm 
+                initialData={editingPatient}
+                onSuccess={handleFormSuccess} 
+              />
+            </motion.div>
+          )}
+          {activeTab === 'list' && (
+            <motion.div key="list" variants={pageVariants} initial="initial" animate="animate" exit="exit">
+              <div className="mb-8 print:hidden">
+                <h2 className="text-2xl font-bold text-slate-800">Lista de Pacientes</h2>
+                <p className="text-slate-500">Gerencie os pacientes cadastrados no sistema.</p>
+              </div>
+              <PatientList 
+                patients={patients} 
+                onEdit={handleEdit} 
+                onRefresh={refreshPatients} 
+              />
+            </motion.div>
+          )}
+          {activeTab === 'agenda' && (
+            <motion.div key="agenda" variants={pageVariants} initial="initial" animate="animate" exit="exit">
+              <Agenda patients={patients} />
+            </motion.div>
+          )}
+          {activeTab === 'returns' && (
+            <motion.div key="returns" variants={pageVariants} initial="initial" animate="animate" exit="exit">
+              <ReturnsList patients={patients} clinicSettings={clinicSettings} />
+            </motion.div>
+          )}
+          {activeTab === 'financial' && (
+            <motion.div key="financial" variants={pageVariants} initial="initial" animate="animate" exit="exit">
+              <FinancialDashboard patients={patients} onRefresh={refreshPatients} />
+            </motion.div>
+          )}
+          {activeTab === 'settings' && (
+            <motion.div key="settings" variants={pageVariants} initial="initial" animate="animate" exit="exit">
+              <div className="mb-8 print:hidden">
+                <h2 className="text-2xl font-bold text-slate-800">Configurações</h2>
+                <p className="text-slate-500">Personalize os dados da clínica para os cabeçalhos de impressão.</p>
+              </div>
+              <Settings onSave={loadSettings} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
 }
+

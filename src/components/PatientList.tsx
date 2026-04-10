@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, FileText, Trash2, User, Calendar, Phone, Edit2, Download, Upload, Activity } from 'lucide-react';
+import { motion } from 'motion/react';
 import { Patient } from '../types';
 import { getPatients, deletePatient } from '../lib/storage';
 import PatientModal from './PatientModal';
@@ -105,12 +106,32 @@ export default function PatientList({
     p.cpf.includes(searchTerm)
   );
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       <ReturnAlerts patients={patients} />
 
       {/* Actions & Search Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col lg:flex-row gap-4 items-center justify-between print:hidden">
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col lg:flex-row gap-4 items-center justify-between print:hidden"
+      >
         <div className="relative w-full lg:max-w-md">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-slate-400" />
@@ -156,13 +177,22 @@ export default function PatientList({
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Patient Grid */}
       {filteredPatients.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 print:hidden">
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 print:hidden"
+        >
           {filteredPatients.map(patient => (
-            <div key={patient.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+            <motion.div 
+              variants={itemVariants}
+              key={patient.id} 
+              className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col"
+            >
               <div className="p-5 flex-1">
                 <div className="flex items-start justify-between mb-4">
                   <div className="h-12 w-12 bg-teal-50 rounded-full flex items-center justify-center text-teal-600 shrink-0">
@@ -243,11 +273,15 @@ export default function PatientList({
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center print:hidden">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center print:hidden"
+        >
           <div className="mx-auto h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
             <User className="h-8 w-8 text-slate-400" />
           </div>
@@ -255,7 +289,7 @@ export default function PatientList({
           <p className="text-slate-500">
             {searchTerm ? 'Tente buscar com outros termos.' : 'Cadastre seu primeiro paciente na aba "Novo Cadastro".'}
           </p>
-        </div>
+        </motion.div>
       )}
 
       {selectedPatient && (

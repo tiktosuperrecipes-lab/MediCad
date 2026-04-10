@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Save, User, MapPin, Activity, FileText, CheckCircle2 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { formatCPF, formatPhone, formatCEP } from '../lib/formatters';
 import { savePatient } from '../lib/storage';
 import { Patient } from '../types';
@@ -105,8 +106,28 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
     }, 2000);
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <div className="max-w-4xl mx-auto">
+    <motion.div 
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="max-w-4xl mx-auto"
+    >
       {showSuccess && (
         <div className="mb-6 p-4 bg-teal-50 border border-teal-200 rounded-lg flex items-center gap-3 text-teal-800 animate-in fade-in slide-in-from-top-4">
           <CheckCircle2 className="h-6 w-6 text-teal-600" />
@@ -114,9 +135,15 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <motion.form 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        onSubmit={handleSubmit} 
+        className="space-y-6"
+      >
         {/* Dados Pessoais */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center gap-2">
             <User className="h-5 w-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-slate-800">Dados Pessoais</h2>
@@ -173,10 +200,10 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
               </select>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Contato e Endereço */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center gap-2">
             <MapPin className="h-5 w-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-slate-800">Contato e Endereço</h2>
@@ -278,10 +305,10 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Dados Clínicos */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center gap-2">
             <Activity className="h-5 w-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-slate-800">Dados Clínicos</h2>
@@ -353,10 +380,10 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Administrativo */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center gap-2">
             <FileText className="h-5 w-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-slate-800">Administrativo</h2>
@@ -397,9 +424,9 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
               />
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="flex justify-end pt-4 pb-12">
+        <motion.div variants={itemVariants} className="flex justify-end pt-4 pb-12">
           <button
             type="submit"
             className="flex items-center gap-2 px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-xl shadow-sm shadow-teal-600/20 transition-all active:scale-95"
@@ -407,8 +434,8 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
             <Save className="h-5 w-5" />
             {initialData ? 'Salvar Alterações' : 'Salvar Paciente'}
           </button>
-        </div>
-      </form>
-    </div>
+        </motion.div>
+      </motion.form>
+    </motion.div>
   );
 }
