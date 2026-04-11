@@ -90,6 +90,15 @@ export interface GlobalFinancialRecord {
   createdAt: string;
 }
 
+export interface ExpenseRecord {
+  id: string;
+  date: string;
+  description: string;
+  category: 'Aluguel' | 'Condomínio/IPTU' | 'Água/Luz/Tel/Internet' | 'Salários/Encargos' | 'Material de Consumo' | 'Conselhos/Anuidades' | 'Marketing' | 'Outros';
+  amount: number;
+  createdAt: string;
+}
+
 export interface Patient {
   id: string;
   // Personal

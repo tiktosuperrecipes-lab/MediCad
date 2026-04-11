@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calculator, DollarSign, TrendingUp, TrendingDown, FileText, AlertCircle, Printer, Download, CheckCircle, Clock } from 'lucide-react';
-import { motion } from 'motion/react';
-import { Patient, GlobalFinancialRecord } from '../types';
+import { Calculator, DollarSign, TrendingUp, TrendingDown, FileText, AlertCircle, Printer, Download, CheckCircle, Clock, Plus, Trash2, BookOpen } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Patient, GlobalFinancialRecord, ExpenseRecord } from '../types';
 import { calculateMonthlyIR } from '../lib/taxCalculator';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateLong, formatDateShort } from '../lib/dateUtils';
-import { savePatient, getGlobalFinancialRecords, updateGlobalFinancialRecordStatus, updateGlobalFinancialRecordReceipt } from '../lib/storage';
+import { savePatient, getGlobalFinancialRecords, updateGlobalFinancialRecordStatus, updateGlobalFinancialRecordReceipt, getExpenses, saveExpense, deleteExpense } from '../lib/storage';
 
 interface FinancialDashboardProps {
   patients: Patient[];
@@ -17,22 +17,75 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
   const [tYear, tMonth] = todayStr.split('-');
   const [selectedYear, setSelectedYear] = useState(tYear);
   const [selectedMonth, setSelectedMonth] = useState(tMonth);
-  const [deductibleExpenses, setDeductibleExpenses] = useState<number>(0);
   const [printMode, setPrintMode] = useState(false);
   const [selectedPatientForReceipt, setSelectedPatientForReceipt] = useState<string>('');
   const [settings, setSettings] = useState<ClinicSettings | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'cashflow' | 'taxes'>('cashflow');
+  const [activeSubTab, setActiveSubTab] = useState<'cashflow' | 'expenses' | 'taxes'>('cashflow');
   const [globalRecords, setGlobalRecords] = useState<GlobalFinancialRecord[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [isAddingExpense, setIsAddingExpense] = useState(false);
+  const [expenseForm, setExpenseForm] = useState<Omit<ExpenseRecord, 'id' | 'createdAt'>>({
+    date: todayStr,
+    description: '',
+    category: 'Outros',
+    amount: 0
+  });
   
   useEffect(() => {
     getSettings().then(setSettings);
     loadGlobalRecords();
   }, []);
 
+  useEffect(() => {
+    loadExpenses();
+  }, [selectedYear, selectedMonth]);
+
   const loadGlobalRecords = async () => {
     const records = await getGlobalFinancialRecords();
     setGlobalRecords(records);
   };
+
+  const loadExpenses = async () => {
+    const data = await getExpenses(selectedYear, selectedMonth);
+    setExpenses(data);
+  };
+
+  const handleAddExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!expenseForm.description || expenseForm.amount <= 0) {
+      alert('Preencha a descrição e o valor corretamente.');
+      return;
+    }
+
+    try {
+      await saveExpense(expenseForm);
+      setExpenseForm({
+        date: todayStr,
+        description: '',
+        category: 'Outros',
+        amount: 0
+      });
+      setIsAddingExpense(false);
+      loadExpenses();
+    } catch (error) {
+      alert('Erro ao salvar despesa.');
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir esta despesa?')) {
+      try {
+        await deleteExpense(id);
+        loadExpenses();
+      } catch (error) {
+        alert('Erro ao excluir despesa.');
+      }
+    }
+  };
+
+  const deductibleExpenses = useMemo(() => {
+    return expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  }, [expenses]);
 
   const handleUpdateStatus = async (id: string, status: 'Pendente' | 'Pago') => {
     try {
@@ -348,6 +401,14 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
           Controle de Caixa
         </button>
         <button
+          onClick={() => setActiveSubTab('expenses')}
+          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+            activeSubTab === 'expenses' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Livro Caixa (Despesas)
+        </button>
+        <button
           onClick={() => setActiveSubTab('taxes')}
           className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
             activeSubTab === 'taxes' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -357,11 +418,14 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
         </button>
       </div>
 
+      <AnimatePresence mode="wait">
       {activeSubTab === 'cashflow' ? (
         <motion.div 
+          key="cashflow"
           variants={containerVariants}
           initial="hidden"
           animate="show"
+          exit={{ opacity: 0, x: 20 }}
           className="space-y-6"
         >
           {/* Cashflow Summary */}
@@ -478,11 +542,174 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
             </motion.div>
           </div>
         </motion.div>
-      ) : (
-        <motion.div 
+      ) : activeSubTab === 'expenses' ? (
+        <motion.div
+          key="expenses"
           variants={containerVariants}
           initial="hidden"
           animate="show"
+          exit={{ opacity: 0, x: 20 }}
+          className="space-y-6"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-800">Livro Caixa: Despesas Dedutíveis</h3>
+              <p className="text-sm text-slate-500">Registre aqui todas as despesas do consultório que podem ser abatidas no Carnê-Leão.</p>
+            </div>
+            <button
+              onClick={() => setIsAddingExpense(!isAddingExpense)}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              {isAddingExpense ? 'Cancelar' : 'Nova Despesa'}
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {isAddingExpense && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <form onSubmit={handleAddExpense} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Data</label>
+                      <input
+                        type="date"
+                        value={expenseForm.date}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
+                      <input
+                        type="text"
+                        value={expenseForm.description}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                        placeholder="Ex: Aluguel do consultório"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
+                      <select
+                        value={expenseForm.category}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white"
+                      >
+                        <option value="Aluguel">Aluguel</option>
+                        <option value="Condomínio/IPTU">Condomínio/IPTU</option>
+                        <option value="Água/Luz/Tel/Internet">Água/Luz/Tel/Internet</option>
+                        <option value="Salários/Encargos">Salários/Encargos</option>
+                        <option value="Material de Consumo">Material de Consumo</option>
+                        <option value="Conselhos/Anuidades">Conselhos/Anuidades</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Outros">Outros</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex items-end justify-between gap-4">
+                    <div className="flex-1 max-w-xs">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Valor (R$)</label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="text-slate-500 sm:text-sm">R$</span>
+                        </div>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={expenseForm.amount || ''}
+                          onChange={(e) => setExpenseForm({ ...expenseForm, amount: parseFloat(e.target.value) || 0 })}
+                          className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                          placeholder="0,00"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors"
+                    >
+                      Salvar Despesa
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-rose-500" />
+                Registros do Mês
+              </h3>
+              <div className="text-sm font-medium text-slate-600">
+                Total de Despesas: <span className="text-rose-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(deductibleExpenses)}</span>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/50 text-slate-500 text-xs uppercase tracking-wider">
+                    <th className="px-6 py-3 font-semibold border-b border-slate-100">Data</th>
+                    <th className="px-6 py-3 font-semibold border-b border-slate-100">Descrição</th>
+                    <th className="px-6 py-3 font-semibold border-b border-slate-100">Categoria</th>
+                    <th className="px-6 py-3 font-semibold border-b border-slate-100 text-right">Valor</th>
+                    <th className="px-6 py-3 font-semibold border-b border-slate-100 text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {expenses.length > 0 ? (
+                    expenses.map((expense) => (
+                      <tr key={expense.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">{formatDateShort(expense.date)}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-slate-900">{expense.description}</td>
+                        <td className="px-6 py-4 text-sm text-slate-500">
+                          <span className="px-2 py-1 bg-slate-100 rounded-md text-[10px] font-bold uppercase">
+                            {expense.category}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-bold text-rose-600 text-right">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(expense.amount)}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            onClick={() => handleDeleteExpense(expense.id)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Excluir Despesa"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-slate-500 italic text-sm">
+                        Nenhuma despesa registrada para este mês.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div 
+          key="taxes"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          exit={{ opacity: 0, x: 20 }}
           className="space-y-6"
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
@@ -545,28 +772,26 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
             Simulador do Carnê-Leão
           </h3>
           <p className="text-sm text-slate-500 mt-1">
-            Insira suas despesas dedutíveis (Livro Caixa) para ver o valor real do imposto a pagar no mês.
+            Resumo automático baseado no seu Livro Caixa (Aba Despesas).
           </p>
         </div>
         
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Despesas Dedutíveis do Mês (R$)
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="text-slate-500 sm:text-sm">R$</span>
+            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <h4 className="text-sm font-medium text-slate-700 mb-2">Despesas Dedutíveis (Livro Caixa)</h4>
+              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 mb-4">
+                <span className="text-sm text-slate-600">Total do Mês:</span>
+                <span className="text-lg font-bold text-rose-600">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(deductibleExpenses)}
+                </span>
               </div>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={deductibleExpenses || ''}
-                onChange={(e) => setDeductibleExpenses(parseFloat(e.target.value) || 0)}
-                className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-                placeholder="0,00"
-              />
+              <button
+                onClick={() => setActiveSubTab('expenses')}
+                className="w-full py-2 text-sm font-medium text-teal-700 hover:text-teal-800 hover:bg-teal-50 border border-teal-200 rounded-lg transition-all"
+              >
+                Ver Detalhes no Livro Caixa
+              </button>
             </div>
             <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
               <h4 className="text-sm font-medium text-slate-700 mb-2">O que pode ser deduzido?</h4>
@@ -694,6 +919,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
       </motion.div>
     </motion.div>
   )}
+  </AnimatePresence>
 
   {/* Print View for Annual Receipt */}
       {printMode && patientForReceipt && (

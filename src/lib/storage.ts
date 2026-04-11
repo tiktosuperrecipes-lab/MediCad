@@ -1,6 +1,6 @@
 import { collection, addDoc, doc, updateDoc, deleteDoc, getDocs, arrayUnion, arrayRemove, query, where, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
-import { Patient, Appointment, GlobalFinancialRecord } from '../types';
+import { Patient, Appointment, GlobalFinancialRecord, ExpenseRecord } from '../types';
 
 const STORAGE_KEY = '@medicad:patients';
 
@@ -390,6 +390,75 @@ export async function updateGlobalFinancialRecordReceipt(id: string, receiptIssu
     }
   } catch (error) {
     console.error("Erro ao atualizar recibo do registro financeiro:", error);
+    throw error;
+  }
+}
+
+// Expense Management (Livro Caixa)
+export async function getExpenses(year?: string, month?: string): Promise<ExpenseRecord[]> {
+  try {
+    let q = query(collection(db, 'livro_caixa'), orderBy('date', 'desc'));
+    
+    if (year && month) {
+      const startDate = `${year}-${month}-01`;
+      const endDate = `${year}-${month}-31`;
+      q = query(collection(db, 'livro_caixa'), 
+        where('date', '>=', startDate), 
+        where('date', '<=', endDate),
+        orderBy('date', 'desc')
+      );
+    } else if (year) {
+      const startDate = `${year}-01-01`;
+      const endDate = `${year}-12-31`;
+      q = query(collection(db, 'livro_caixa'), 
+        where('date', '>=', startDate), 
+        where('date', '<=', endDate),
+        orderBy('date', 'desc')
+      );
+    }
+
+    const querySnapshot = await getDocs(q);
+    const expenses: ExpenseRecord[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      expenses.push({
+        ...doc.data() as ExpenseRecord,
+        id: doc.id
+      });
+    });
+    
+    return expenses;
+  } catch (error) {
+    console.error("Erro ao buscar despesas no Firestore:", error);
+    return [];
+  }
+}
+
+export async function saveExpense(expense: Omit<ExpenseRecord, 'id'> | ExpenseRecord): Promise<void> {
+  try {
+    const cleanExpense = JSON.parse(JSON.stringify(expense));
+    
+    if ('id' in cleanExpense && cleanExpense.id) {
+      const { id, ...expenseData } = cleanExpense;
+      const expenseRef = doc(db, 'livro_caixa', id);
+      await updateDoc(expenseRef, expenseData);
+    } else {
+      await addDoc(collection(db, 'livro_caixa'), {
+        ...cleanExpense,
+        createdAt: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error("Erro ao salvar despesa no Firestore:", error);
+    throw error;
+  }
+}
+
+export async function deleteExpense(id: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, 'livro_caixa', id));
+  } catch (error) {
+    console.error("Erro ao excluir despesa no Firestore:", error);
     throw error;
   }
 }
