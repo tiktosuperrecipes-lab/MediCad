@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto } from '../types';
-import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord } from '../lib/storage';
+import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
 import { compressImage } from '../lib/imageUtils';
@@ -81,6 +81,7 @@ export default function PatientModal({
   });
 
   const [newPhotoSize, setNewPhotoSize] = useState<number | null>(null);
+  const [editingEvolution, setEditingEvolution] = useState<{index: number, text: string} | null>(null);
 
   const patientSize = useMemo(() => {
     try {
@@ -169,6 +170,60 @@ export default function PatientModal({
     } catch (error) {
       alert('Erro ao salvar evolução.');
     }
+  };
+
+  const handleDeleteEvolution = async (entry: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este registro?')) return;
+    
+    try {
+      await deleteClinicalEvolution(patient.id, entry);
+      
+      const updatedPatient = {
+        ...patient,
+        historico_clinico: patient.historico_clinico?.filter(e => e !== entry)
+      };
+      onUpdate(updatedPatient);
+    } catch (error) {
+      console.error("Erro ao excluir evolução:", error);
+      alert("Erro ao excluir evolução.");
+    }
+  };
+
+  const handleUpdateEvolution = async () => {
+    if (!editingEvolution || !editingEvolution.text.trim()) return;
+    
+    const oldEntry = patient.historico_clinico![editingEvolution.index];
+    const colonIndex = oldEntry.indexOf(': ');
+    const timestamp = colonIndex !== -1 ? oldEntry.substring(0, colonIndex) : new Date().toLocaleString('pt-BR');
+    const newEntry = `${timestamp}: ${editingEvolution.text}`;
+
+    try {
+      await updateClinicalEvolution(patient.id, oldEntry, newEntry);
+      
+      const newHistorico = [...patient.historico_clinico!];
+      newHistorico[editingEvolution.index] = newEntry;
+      
+      const updatedPatient = {
+        ...patient,
+        historico_clinico: newHistorico
+      };
+      onUpdate(updatedPatient);
+      setEditingEvolution(null);
+    } catch (error) {
+      console.error("Erro ao atualizar evolução:", error);
+      alert("Erro ao atualizar evolução.");
+    }
+  };
+
+  const handleDeleteOldConsultation = (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este registro antigo?')) return;
+    
+    const updatedPatient = {
+      ...patient,
+      consultations: patient.consultations?.filter(c => c.id !== id)
+    };
+    savePatient(updatedPatient);
+    onUpdate(updatedPatient);
   };
 
   const handleAddMedication = () => {
@@ -895,30 +950,90 @@ export default function PatientModal({
             <div className={`space-y-6 border-l-2 border-teal-100 pl-4 ml-2 print:border-slate-300 ${printMode !== 'history' && printMode !== 'details' ? 'print:hidden' : ''}`}>
               {/* Listagem do Histórico Clínico (Novo formato PASSO 2) */}
               {patient.historico_clinico && patient.historico_clinico.length > 0 && (
-                patient.historico_clinico.map((entry, idx) => (
-                  <div key={`hist-${idx}`} className="relative">
-                    <div className="absolute -left-[25px] top-1.5 h-4 w-4 rounded-full bg-teal-500 border-4 border-white shadow-sm print:border-slate-300 print:bg-slate-800"></div>
-                    <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm print:shadow-none print:border-slate-300 print:p-4">
-                      <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">
-                        {entry}
-                      </p>
+                patient.historico_clinico.map((entry, idx) => {
+                  const colonIndex = entry.indexOf(': ');
+                  const timestamp = colonIndex !== -1 ? entry.substring(0, colonIndex) : '';
+                  const text = colonIndex !== -1 ? entry.substring(colonIndex + 2) : entry;
+                  const isEditing = editingEvolution?.index === idx;
+
+                  return (
+                    <div key={`hist-${idx}`} className="relative group">
+                      <div className="absolute -left-[25px] top-1.5 h-4 w-4 rounded-full bg-teal-500 border-4 border-white shadow-sm print:border-slate-300 print:bg-slate-800"></div>
+                      <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm print:shadow-none print:border-slate-300 print:p-4 hover:border-teal-200 transition-colors">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-[10px] font-bold text-teal-600 uppercase tracking-wider">{timestamp}</span>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
+                            <button 
+                              onClick={() => setEditingEvolution({ index: idx, text: text })}
+                              className="p-1 text-slate-400 hover:text-teal-600 rounded"
+                              title="Editar"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteEvolution(entry)}
+                              className="p-1 text-slate-400 hover:text-red-600 rounded"
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <textarea 
+                              value={editingEvolution.text}
+                              onChange={(e) => setEditingEvolution({...editingEvolution, text: e.target.value})}
+                              className="w-full p-2 text-sm border border-teal-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none h-24 resize-none"
+                            />
+                            <div className="flex justify-end gap-2">
+                              <button 
+                                onClick={() => setEditingEvolution(null)}
+                                className="px-3 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded"
+                              >
+                                Cancelar
+                              </button>
+                              <button 
+                                onClick={handleUpdateEvolution}
+                                className="px-3 py-1 text-xs font-medium bg-teal-600 text-white rounded hover:bg-teal-700"
+                              >
+                                Salvar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">
+                            {text}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
 
               {/* Listagem das Consultas (Formato antigo para compatibilidade) */}
               {patient.consultations && patient.consultations.length > 0 ? (
                 patient.consultations.map(c => (
-                  <div key={c.id} className="relative">
+                  <div key={c.id} className="relative group">
                     <div className="absolute -left-[25px] top-1.5 h-4 w-4 rounded-full bg-slate-400 border-4 border-white shadow-sm print:border-slate-300 print:bg-slate-800"></div>
-                    <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm print:shadow-none print:border-slate-300 print:p-4 opacity-75">
+                    <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm print:shadow-none print:border-slate-300 print:p-4 opacity-75 hover:opacity-100 transition-opacity">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-2">
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-slate-500 print:text-slate-800" />
                           <span className="font-semibold text-slate-800">
                             {formatDateShort(c.date)} (Antigo)
                           </span>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
+                          <button 
+                            onClick={() => handleDeleteOldConsultation(c.id)}
+                            className="p-1 text-slate-400 hover:text-red-600 rounded"
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       </div>
                       <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">

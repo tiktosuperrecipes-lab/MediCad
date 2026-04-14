@@ -141,6 +141,36 @@ export async function addClinicalEvolution(patientId: string, text: string): Pro
   }
 }
 
+export async function deleteClinicalEvolution(patientId: string, entry: string): Promise<void> {
+  try {
+    const patientRef = doc(db, 'pacientes', patientId);
+    await updateDoc(patientRef, {
+      historico_clinico: arrayRemove(entry)
+    });
+  } catch (error) {
+    console.error("Erro ao excluir evolução clínica:", error);
+    throw error;
+  }
+}
+
+export async function updateClinicalEvolution(patientId: string, oldEntry: string, newEntry: string): Promise<void> {
+  try {
+    const patientRef = doc(db, 'pacientes', patientId);
+    const { getDoc } = await import('firebase/firestore');
+    const docSnap = await getDoc(patientRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      const historico = data.historico_clinico || [];
+      const newHistorico = historico.map((e: string) => e === oldEntry ? newEntry : e);
+      await updateDoc(patientRef, { historico_clinico: newHistorico });
+    }
+  } catch (error) {
+    console.error("Erro ao atualizar evolução clínica:", error);
+    throw error;
+  }
+}
+
 export async function addFinancialRecord(patientId: string, record: any): Promise<void> {
   try {
     if (!record) throw new Error("Financial record is null or undefined");
