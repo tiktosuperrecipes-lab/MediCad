@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto } from '../types';
-import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt } from '../lib/storage';
+import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
 import { compressImage } from '../lib/imageUtils';
@@ -75,6 +75,7 @@ export default function PatientModal({
   const [paymentForm, setPaymentForm] = useState({
     amount: 0,
     method: 'pix' as Payment['method'],
+    procedure: '',
     notes: '',
     receiptIssued: false
   });
@@ -323,11 +324,12 @@ export default function PatientModal({
       return;
     }
 
-    const newPayment: Payment & { recordType: 'payment' } = {
+    const newPayment: Payment & { recordType: 'payment', procedure?: string } = {
       id: crypto.randomUUID(),
       date: getLocalDateString(),
       amount: paymentForm.amount,
       method: paymentForm.method,
+      procedure: paymentForm.procedure,
       notes: paymentForm.notes,
       status: 'Pendente',
       receiptIssued: paymentForm.receiptIssued,
@@ -344,21 +346,32 @@ export default function PatientModal({
       };
 
       onUpdate(updatedPatient);
-      setPaymentForm({ amount: 0, method: 'pix', notes: '', receiptIssued: false });
+      setPaymentForm({ amount: 0, method: 'pix', procedure: '', notes: '', receiptIssued: false });
       alert('Pagamento registrado com sucesso no Firebase!');
     } catch (error) {
       alert('Erro ao registrar pagamento no Firebase.');
     }
   };
 
-  const handleDeletePayment = (id: string) => {
-    const updatedPatient = {
-      ...patient,
-      payments: patient.payments?.filter(p => p.id !== id),
-      financeiro: patient.financeiro?.filter((f: any) => f.id !== id)
-    };
-    savePatient(updatedPatient);
-    onUpdate(updatedPatient);
+  const handleDeletePayment = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este pagamento? Ele também será removido do financeiro geral.')) return;
+    
+    try {
+      // Tenta remover do financeiro geral primeiro
+      await deleteGlobalFinancialRecord(id).catch(err => console.warn("Registro não encontrado no financeiro geral:", err));
+
+      const updatedPatient = {
+        ...patient,
+        payments: patient.payments?.filter(p => p.id !== id),
+        financeiro: patient.financeiro?.filter((f: any) => f.id !== id)
+      };
+      
+      await savePatient(updatedPatient);
+      onUpdate(updatedPatient);
+    } catch (error) {
+      console.error("Erro ao excluir pagamento:", error);
+      alert("Erro ao excluir pagamento.");
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -1373,7 +1386,17 @@ export default function PatientModal({
                         <option value="transfer">Transferência</option>
                       </select>
                     </div>
-                    <div className="md:col-span-4">
+                    <div className="md:col-span-3">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Procedimento (Opcional)</label>
+                      <input
+                        type="text"
+                        value={paymentForm.procedure}
+                        onChange={(e) => setPaymentForm({...paymentForm, procedure: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                        placeholder="Ex: Limpeza, Canal..."
+                      />
+                    </div>
+                    <div className="md:col-span-3">
                       <label className="block text-sm font-medium text-slate-700 mb-1">Observações (Opcional)</label>
                       <input
                         type="text"
@@ -1435,6 +1458,12 @@ export default function PatientModal({
                               </div>
                               <div className="text-sm text-slate-600 mt-1 flex items-center gap-2">
                                 <span className="capitalize">{payment.method}</span>
+                                {(payment as any).procedure && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="font-medium text-slate-700">{(payment as any).procedure}</span>
+                                  </>
+                                )}
                                 {payment.notes && (
                                   <>
                                     <span>•</span>
@@ -1472,7 +1501,7 @@ export default function PatientModal({
                                     Recebi(emos) de <strong>{patient.fullName}</strong>, 
                                     {patient.cpf ? ` inscrito(a) no CPF sob o nº ${patient.cpf},` : ''} 
                                     a importância supra de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}, 
-                                    referente a serviços prestados em saúde.
+                                    referente a {(payment as any).procedure || 'serviços prestados em saúde'}.
                                   </p>
                                   {payment.notes && (
                                     <p><strong>Referente a:</strong> {payment.notes}</p>
@@ -1554,14 +1583,7 @@ export default function PatientModal({
                                   </button>
                                 )}
                                 <button
-                                  onClick={() => {
-                                    const updatedPatient = {
-                                      ...patient,
-                                      financeiro: patient.financeiro?.filter((f: any) => f.id !== payment.id)
-                                    };
-                                    savePatient(updatedPatient);
-                                    onUpdate(updatedPatient);
-                                  }}
+                                  onClick={() => handleDeletePayment(payment.id)}
                                   className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                   title="Excluir Pagamento"
                                 >
@@ -1594,14 +1616,7 @@ export default function PatientModal({
                                   <Printer className="h-4 w-4" />
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    const updatedPatient = {
-                                      ...patient,
-                                      financeiro: patient.financeiro?.filter((f: any) => f.id !== budget.id)
-                                    };
-                                    savePatient(updatedPatient);
-                                    onUpdate(updatedPatient);
-                                  }}
+                                  onClick={() => handleDeleteBudget(budget.id)}
                                   className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                   title="Excluir Orçamento"
                                 >

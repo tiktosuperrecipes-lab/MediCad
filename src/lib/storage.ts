@@ -166,8 +166,8 @@ export async function addFinancialRecord(patientId: string, record: any): Promis
         date: record.date,
         amount: record.amount,
         method: record.method,
-        procedure: record.notes || 'Pagamento avulso',
-        status: record.receiptIssued ? 'Pago' : 'Pendente',
+        procedure: record.procedure || record.notes || 'Pagamento avulso',
+        status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
         receiptIssued: record.receiptIssued || false,
         createdAt: new Date().toISOString()
       });
@@ -254,6 +254,15 @@ export async function getGlobalFinancialRecords(): Promise<GlobalFinancialRecord
   } catch (error) {
     console.error("Erro ao buscar registros financeiros globais:", error);
     return [];
+  }
+}
+
+export async function deleteGlobalFinancialRecord(id: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, 'financeiro_geral', id));
+  } catch (error) {
+    console.error("Erro ao excluir registro financeiro global:", error);
+    throw error;
   }
 }
 
