@@ -278,7 +278,7 @@ export default function Settings({ onSave }: SettingsProps) {
                 </div>
               </form>
             ) : (
-              <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+              <div className="space-y-6 animate-in fade-in zoom-in-95 duration-100">
                 <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                   <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                   <div className="text-sm text-amber-800">

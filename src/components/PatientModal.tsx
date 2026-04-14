@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto } from '../types';
 import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt } from '../lib/storage';
@@ -78,6 +78,17 @@ export default function PatientModal({
     notes: '',
     receiptIssued: false
   });
+
+  const [newPhotoSize, setNewPhotoSize] = useState<number | null>(null);
+
+  const patientSize = useMemo(() => {
+    try {
+      const sizeInBytes = JSON.stringify(patient).length;
+      return Math.round(sizeInBytes / 1024);
+    } catch (e) {
+      return 0;
+    }
+  }, [patient]);
 
   const handlePrint = (mode: 'history' | 'prescription' | 'exam' | 'certificate' | 'details' | 'budget' | 'receipt', callback?: () => void) => {
     setPrintMode(mode);
@@ -359,8 +370,11 @@ export default function PatientModal({
     if (!file) return;
 
     setIsUploadingPhoto(true);
+    setNewPhotoSize(null);
     try {
       const base64Image = await compressImage(file);
+      const sizeInBytes = base64Image.length;
+      setNewPhotoSize(Math.round(sizeInBytes / 1024));
       setPendingPhoto({
         base64: base64Image,
         description: '',
@@ -396,6 +410,7 @@ export default function PatientModal({
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
     setPendingPhoto(null);
+    setNewPhotoSize(null);
   };
 
   const handleDeletePhoto = async (photoToDelete: string | PatientPhoto) => {
@@ -461,22 +476,62 @@ export default function PatientModal({
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 800, damping: 45 } }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm print:static print:p-0 print:bg-white print:block">
       <motion.div 
+        layout
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 800, 
+          damping: 45,
+          layout: { duration: 0.15, type: "spring", stiffness: 600, damping: 40 }
+        }}
         className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible flex flex-col"
       >
         
         {/* Header */}
-        <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between print:hidden">
-          <h2 className="text-xl font-bold text-slate-800">Prontuário Eletrônico: {patient.fullName}</h2>
+        <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-xl font-bold text-slate-800">Prontuário Eletrônico: {patient.fullName}</h2>
+            
+            {/* Monitor de Espaço */}
+            <div className="flex flex-col gap-1 max-w-[200px]">
+              <div className={`text-[10px] font-medium flex items-center gap-2 ${
+                patientSize > 950 ? 'text-red-600' : 
+                patientSize > 800 ? 'text-orange-600' : 
+                'text-slate-500'
+              }`}>
+                <span>Espaço utilizado: {patientSize} KB de 1024 KB</span>
+                {patientSize > 950 && (
+                  <span className="animate-pulse flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Quase esgotado!
+                  </span>
+                )}
+              </div>
+              <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-150 ${
+                    patientSize > 950 ? 'bg-red-600' : 
+                    patientSize > 800 ? 'bg-orange-500' : 
+                    'bg-teal-500'
+                  }`}
+                  style={{ width: `${Math.min((patientSize / 1024) * 100, 100)}%` }}
+                />
+              </div>
+              {patientSize > 950 && (
+                <p className="text-[9px] text-red-500 font-bold leading-tight">
+                  Evite adicionar novas fotos.
+                </p>
+              )}
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => handlePrint('details')}
@@ -552,17 +607,22 @@ export default function PatientModal({
         </div>
 
         {/* Content */}
-        <div className="p-6 sm:p-8 flex-1 print:p-0">
-          <AnimatePresence mode="wait">
+        <motion.div 
+          layout 
+          transition={{ layout: { type: "spring", stiffness: 1000, damping: 50 } }}
+          className="p-6 sm:p-8 flex-1 print:p-0 relative"
+        >
+          <AnimatePresence mode="popLayout">
             {/* TAB 1: Dados Cadastrais e Anamnese Base */}
             {activeTab === 'details' && (
               <motion.div 
                 key="details"
+                layout
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.2 }}
-                className={`${printMode === 'details' ? 'print:block' : 'print:hidden'} space-y-8`}
+                transition={{ type: "spring", stiffness: 1000, damping: 50 }}
+                className={`${printMode === 'details' ? 'print:block' : 'print:hidden'} space-y-8 w-full`}
               >
             {/* Dados Pessoais */}
             <section className={printMode !== 'details' ? 'print:hidden' : ''}>
@@ -707,11 +767,12 @@ export default function PatientModal({
           {activeTab === 'history' && (
           <motion.div 
             key="history"
+            layout
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.2 }}
-            className={`${printMode === 'history' ? 'print:block' : 'print:hidden'} print:mt-12`}
+            transition={{ type: "spring", stiffness: 1000, damping: 50 }}
+            className={`${printMode === 'history' ? 'print:block' : 'print:hidden'} print:mt-12 w-full`}
           >
             <div className={`flex items-center justify-between mb-6 print:hidden ${printMode !== 'history' ? 'hidden' : ''}`}>
               <h3 className="text-lg font-semibold text-slate-800">Histórico de Consultas</h3>
@@ -740,7 +801,7 @@ export default function PatientModal({
             </div>
 
             {showNewConsultation && (
-              <div className="bg-teal-50/50 p-5 rounded-xl border border-teal-100 mb-8 print:hidden animate-in fade-in slide-in-from-top-4">
+              <div className="bg-teal-50/50 p-5 rounded-xl border border-teal-100 mb-8 print:hidden animate-in fade-in slide-in-from-top-4 duration-75">
                 <h4 className="font-medium text-teal-900 mb-4">Nova Evolução</h4>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -910,7 +971,7 @@ export default function PatientModal({
                         <img 
                           src={src} 
                           alt={`Foto ${idx + 1}`} 
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          className="w-full h-full object-cover transition-transform duration-100 group-hover:scale-105"
                         />
                         {desc && (
                           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900/80 to-transparent p-3 pt-6">
@@ -938,11 +999,12 @@ export default function PatientModal({
           {activeTab === 'prescriptions' && (
           <motion.div 
             key="prescriptions"
+            layout
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.2 }}
-            className={`${printMode === 'prescription' || printMode === 'exam' ? 'print:block' : 'print:hidden'}`}
+            transition={{ type: "spring", stiffness: 1000, damping: 50 }}
+            className={`${printMode === 'prescription' || printMode === 'exam' ? 'print:block' : 'print:hidden'} w-full`}
           >
             
             {/* Receituário */}
@@ -1054,11 +1116,12 @@ export default function PatientModal({
           {activeTab === 'certificates' && (
           <motion.div 
             key="certificates"
+            layout
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.2 }}
-            className={`${printMode === 'certificate' ? 'print:block' : 'print:hidden'}`}
+            transition={{ type: "spring", stiffness: 1000, damping: 50 }}
+            className={`${printMode === 'certificate' ? 'print:block' : 'print:hidden'} w-full`}
           >
             <div className="flex items-center justify-between mb-6 print:hidden">
               <h3 className="text-lg font-semibold text-slate-800">Atestado Odontológico</h3>
@@ -1113,11 +1176,12 @@ export default function PatientModal({
           {activeTab === 'financial' && (
           <motion.div 
             key="financial"
+            layout
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.2 }}
-            className={`${printMode === 'budget' || printMode === 'receipt' ? 'print:block' : 'print:hidden'}`}
+            transition={{ type: "spring", stiffness: 1000, damping: 50 }}
+            className={`${printMode === 'budget' || printMode === 'receipt' ? 'print:block' : 'print:hidden'} w-full`}
           >
             
             {/* Orçamentos */}
@@ -1700,7 +1764,7 @@ export default function PatientModal({
             <p className="text-sm text-slate-600">{settings?.crm || 'CRM/CRO'}</p>
           </div>
 
-        </div>
+        </motion.div>
       </motion.div>
 
       {/* Photo Viewer Modal */}
@@ -1713,7 +1777,7 @@ export default function PatientModal({
 
         return (
           <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
-            <div className="relative max-w-6xl w-full max-h-[95vh] flex flex-col md:flex-row bg-white rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative max-w-6xl w-full max-h-[95vh] flex flex-col md:flex-row bg-white rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-75">
               
               {/* Image Area */}
               <div className="flex-1 bg-slate-100 flex items-center justify-center relative min-h-[50vh] md:min-h-0">
@@ -1858,7 +1922,7 @@ export default function PatientModal({
       {/* Pending Photo Upload Modal */}
       {pendingPhoto && (
         <div className="fixed inset-0 z-[70] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-75">
             <div className="flex items-center justify-between p-6 border-b border-slate-100">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Upload className="h-5 w-5 text-teal-600" />
@@ -1900,20 +1964,32 @@ export default function PatientModal({
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
-              <button
-                onClick={() => setPendingPhoto(null)}
-                className="px-4 py-2 text-slate-600 hover:bg-slate-200 font-medium rounded-lg transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSavePhoto}
-                className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
-              >
-                <Save className="h-4 w-4" />
-                Salvar Foto
-              </button>
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex flex-col gap-3">
+              {newPhotoSize && (
+                <motion.p 
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-xs text-teal-600 font-bold flex items-center gap-1"
+                >
+                  <ImageIcon className="h-3 w-3" />
+                  Esta foto ocupa {newPhotoSize} KB
+                </motion.p>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setPendingPhoto(null)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-200 font-medium rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSavePhoto}
+                  className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  Salvar Foto
+                </button>
+              </div>
             </div>
           </div>
         </div>

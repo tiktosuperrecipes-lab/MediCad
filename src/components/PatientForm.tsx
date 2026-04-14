@@ -129,7 +129,7 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
       className="max-w-4xl mx-auto"
     >
       {showSuccess && (
-        <div className="mb-6 p-4 bg-teal-50 border border-teal-200 rounded-lg flex items-center gap-3 text-teal-800 animate-in fade-in slide-in-from-top-4">
+        <div className="mb-6 p-4 bg-teal-50 border border-teal-200 rounded-lg flex items-center gap-3 text-teal-800 animate-in fade-in slide-in-from-top-4 duration-75">
           <CheckCircle2 className="h-6 w-6 text-teal-600" />
           <p className="font-medium">Paciente salvo com sucesso!</p>
         </div>
