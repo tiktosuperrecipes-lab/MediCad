@@ -1,14 +1,18 @@
 import React, { useState, useMemo } from 'react';
-import { Calculator, AlertTriangle, CheckCircle2, XCircle, Info, DollarSign, Percent, Receipt } from 'lucide-react';
+import { Calculator, AlertTriangle, CheckCircle2, XCircle, Info, DollarSign, Percent, Receipt, Plus, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { calculateMonthlyIR } from '../lib/taxCalculator';
 
 export default function BusinessCalculator() {
   const [treatmentValue, setTreatmentValue] = useState<number>(0);
-  const [costValue, setCostValue] = useState<number>(0);
+  const [costItems, setCostItems] = useState<{id: string, label: string, value: number}[]>([
+    { id: '1', label: 'Material / Fornecedor', value: 0 }
+  ]);
   const [issueReceipt, setIssueReceipt] = useState<boolean>(true);
   const [otherCosts, setOtherCosts] = useState<number>(0);
   const [otherCostsType, setOtherCostsType] = useState<'fixed' | 'percentage'>('fixed');
+
+  const costValue = useMemo(() => costItems.reduce((sum, item) => sum + item.value, 0), [costItems]);
 
   const results = useMemo(() => {
     const calculatedOtherCosts = otherCostsType === 'percentage' 
@@ -64,6 +68,24 @@ export default function BusinessCalculator() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
+  const addCostItem = () => {
+    setCostItems([...costItems, { id: crypto.randomUUID(), label: '', value: 0 }]);
+  };
+
+  const removeCostItem = (id: string) => {
+    if (costItems.length > 1) {
+      setCostItems(costItems.filter(item => item.id !== id));
+    } else {
+      setCostItems([{ id: '1', label: 'Material / Fornecedor', value: 0 }]);
+    }
+  };
+
+  const updateCostItem = (id: string, field: 'label' | 'value', value: string | number) => {
+    setCostItems(costItems.map(item => 
+      item.id === id ? { ...item, [field]: value } : item
+    ));
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="bg-teal-700 p-6 text-white">
@@ -97,21 +119,60 @@ export default function BusinessCalculator() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
-              <Info className="h-4 w-4 text-slate-400" />
-              Custo Direto (Alinhador / Protético / Material)
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">R$</span>
-              <input
-                type="number"
-                value={costValue || ''}
-                onChange={(e) => setCostValue(Number(e.target.value))}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none font-bold text-lg text-red-600"
-                placeholder="0,00"
-              />
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <Info className="h-4 w-4 text-slate-400" />
+                Custos Diretos (Materiais / Lab / Fornecedor)
+              </label>
+              <button
+                onClick={addCostItem}
+                className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded border border-teal-100 hover:bg-teal-100 transition-colors flex items-center gap-1"
+              >
+                <Plus className="h-3 w-3" />
+                Adicionar Item
+              </button>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+              {costItems.map((item) => (
+                <div key={item.id} className="flex gap-2 items-start">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={item.label}
+                      onChange={(e) => updateCostItem(item.id, 'label', e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none text-xs"
+                      placeholder="Ex: Laboratório"
+                    />
+                  </div>
+                  <div className="w-32 relative">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] font-medium">R$</span>
+                    <input
+                      type="number"
+                      value={item.value || ''}
+                      onChange={(e) => updateCostItem(item.id, 'value', Number(e.target.value))}
+                      className="w-full pl-7 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none text-xs font-bold text-red-600"
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <button
+                    onClick={() => removeCostItem(item.id)}
+                    className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            
+            {costItems.length > 1 && (
+              <div className="mt-2 text-right">
+                <span className="text-xs font-bold text-slate-500">Total de Custos: </span>
+                <span className="text-sm font-black text-red-600">{formatCurrency(costValue)}</span>
+              </div>
+            )}
+            
+            <p className="mt-2 text-[10px] text-slate-500">
               Dica: Se for parcelar a compra, use o valor total com juros.
             </p>
           </div>
@@ -231,9 +292,21 @@ export default function BusinessCalculator() {
           </div>
 
           <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 border-b border-slate-100 text-sm">
-              <span className="text-slate-600">Custo Direto</span>
-              <span className="font-medium text-red-600">- {formatCurrency(costValue)}</span>
+            <div className="p-3 border-b border-slate-100">
+              <div className="flex justify-between items-center text-sm mb-1">
+                <span className="text-slate-600">Custo Direto Total</span>
+                <span className="font-medium text-red-600">- {formatCurrency(costValue)}</span>
+              </div>
+              {costItems.length > 1 && costItems.some(item => item.value > 0) && (
+                <div className="space-y-1 ml-4 border-l-2 border-slate-100 pl-3">
+                  {costItems.filter(item => item.value > 0).map(item => (
+                    <div key={item.id} className="flex justify-between text-[10px] text-slate-500">
+                      <span>{item.label || 'Sem nome'}</span>
+                      <span>{formatCurrency(item.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex justify-between items-center p-3 border-b border-slate-100 text-sm">
               <span className="text-slate-600">Taxas / Comissões</span>

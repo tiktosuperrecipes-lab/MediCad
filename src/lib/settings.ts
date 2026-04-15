@@ -1,6 +1,14 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
+export interface Procedure {
+  id: string;
+  name: string;
+  description: string;
+  basePrice: number;
+  category?: string;
+}
+
 export interface ClinicSettings {
   name: string;
   address: string;
@@ -10,6 +18,7 @@ export interface ClinicSettings {
   cpf?: string;
   agendaStartTime?: string;
   agendaEndTime?: string;
+  procedures?: Procedure[];
 }
 
 const DEFAULT_SETTINGS: ClinicSettings = {
@@ -20,7 +29,8 @@ const DEFAULT_SETTINGS: ClinicSettings = {
   crm: 'CRM 00000-UF',
   cpf: '',
   agendaStartTime: '08:00',
-  agendaEndTime: '18:00'
+  agendaEndTime: '18:00',
+  procedures: []
 };
 
 const SETTINGS_DOC_ID = 'clinica_principal';

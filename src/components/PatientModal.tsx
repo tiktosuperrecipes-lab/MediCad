@@ -1353,7 +1353,30 @@ export default function PatientModal({
               <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-6 print:hidden">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                   <div className="md:col-span-6">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Procedimento / Item</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-sm font-medium text-slate-700">Procedimento / Item</label>
+                      {settings?.procedures && settings.procedures.length > 0 && (
+                        <select
+                          onChange={(e) => {
+                            const proc = settings.procedures?.find(p => p.id === e.target.value);
+                            if (proc) {
+                              setCurrentBudgetItem({
+                                ...currentBudgetItem,
+                                description: proc.name,
+                                unitPrice: proc.basePrice
+                              });
+                            }
+                            e.target.value = "";
+                          }}
+                          className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded border border-teal-100 outline-none cursor-pointer hover:bg-teal-100 transition-colors"
+                        >
+                          <option value="">+ Catálogo</option>
+                          {settings.procedures.map(p => (
+                            <option key={p.id} value={p.id}>{p.name} (R$ {p.basePrice})</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={currentBudgetItem.description}
@@ -1514,7 +1537,30 @@ export default function PatientModal({
                       </select>
                     </div>
                     <div className="md:col-span-3">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Procedimento (Opcional)</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-slate-700">Procedimento (Opcional)</label>
+                        {settings?.procedures && settings.procedures.length > 0 && (
+                          <select
+                            onChange={(e) => {
+                              const proc = settings.procedures?.find(p => p.id === e.target.value);
+                              if (proc) {
+                                setPaymentForm({
+                                  ...paymentForm,
+                                  procedure: proc.name,
+                                  amount: proc.basePrice
+                                });
+                              }
+                              e.target.value = "";
+                            }}
+                            className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded border border-teal-100 outline-none cursor-pointer hover:bg-teal-100 transition-colors"
+                          >
+                            <option value="">+ Catálogo</option>
+                            {settings.procedures.map(p => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
                       <input
                         type="text"
                         value={paymentForm.procedure}

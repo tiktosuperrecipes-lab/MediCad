@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2, Trash2, ShieldAlert, Lock, AlertTriangle, DollarSign } from 'lucide-react';
+import { Save, Building2, Trash2, ShieldAlert, Lock, AlertTriangle, DollarSign, Plus, List, Edit3 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ClinicSettings, getSettings, saveSettings } from '../lib/settings';
 import { resetCollection, clearPatientClinicalData } from '../lib/storage';
@@ -24,6 +24,7 @@ export default function Settings({ onSave }: SettingsProps) {
   const [password, setPassword] = useState('');
   const [isAuth, setIsAuth] = useState(false);
   const [resetStatus, setResetStatus] = useState<{type: string, success: boolean} | null>(null);
+  const [newProcedure, setNewProcedure] = useState({ name: '', description: '', basePrice: 0 });
 
   const RESET_PASSWORD = 'Samuel20206@';
 
@@ -81,6 +82,23 @@ export default function Settings({ onSave }: SettingsProps) {
       alert('Senha incorreta!');
       setPassword('');
     }
+  };
+
+  const handleAddProcedure = () => {
+    if (!newProcedure.name.trim()) return;
+    const proc = { ...newProcedure, id: crypto.randomUUID() };
+    setSettings({
+      ...settings,
+      procedures: [...(settings.procedures || []), proc]
+    });
+    setNewProcedure({ name: '', description: '', basePrice: 0 });
+  };
+
+  const handleRemoveProcedure = (id: string) => {
+    setSettings({
+      ...settings,
+      procedures: settings.procedures?.filter(p => p.id !== id)
+    });
   };
 
   return (
@@ -200,6 +218,88 @@ export default function Settings({ onSave }: SettingsProps) {
               </div>
             </div>
           </div>
+
+            <div className="border-t border-slate-200 pt-6 mt-2">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <List className="h-5 w-5 text-teal-600" />
+                  <h3 className="text-sm font-semibold text-slate-800">Catálogo de Procedimentos</h3>
+                </div>
+              </div>
+              
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+                <p className="text-xs text-slate-500 mb-4">Cadastre seus serviços padrão para agilizar a criação de orçamentos.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                  <div className="md:col-span-2">
+                    <input
+                      type="text"
+                      placeholder="Nome do Procedimento"
+                      value={newProcedure.name}
+                      onChange={(e) => setNewProcedure({...newProcedure, name: e.target.value})}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">R$</span>
+                      <input
+                        type="number"
+                        placeholder="Valor"
+                        value={newProcedure.basePrice || ''}
+                        onChange={(e) => setNewProcedure({...newProcedure, basePrice: Number(e.target.value)})}
+                        className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    placeholder="Descrição curta (opcional)"
+                    value={newProcedure.description}
+                    onChange={(e) => setNewProcedure({...newProcedure, description: e.target.value})}
+                    className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddProcedure}
+                    className="px-4 py-2 bg-teal-600 text-white text-sm font-bold rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Adicionar
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {settings.procedures && settings.procedures.length > 0 ? (
+                  settings.procedures.map((proc) => (
+                    <div key={proc.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg group">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-800 text-sm">{proc.name}</span>
+                          <span className="text-teal-600 font-bold text-sm">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(proc.basePrice)}
+                          </span>
+                        </div>
+                        {proc.description && <p className="text-xs text-slate-500">{proc.description}</p>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveProcedure(proc.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                    <p className="text-sm text-slate-400">Nenhum procedimento cadastrado.</p>
+                  </div>
+                )}
+              </div>
+            </div>
 
           <div className="flex items-center justify-end gap-4 pt-4 border-t border-slate-200">
             {saved && (
