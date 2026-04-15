@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX, AlertCircle, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto } from '../types';
+import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto, OdontogramData } from '../types';
 import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
 import { compressImage } from '../lib/imageUtils';
+import Odontogram from './Odontogram';
 
 export default function PatientModal({ 
   patient, 
@@ -17,10 +18,10 @@ export default function PatientModal({
   patient: Patient; 
   onClose: () => void;
   onUpdate: (p: Patient) => void;
-  initialTab?: 'details' | 'history' | 'prescriptions' | 'certificates' | 'financial';
+  initialTab?: 'details' | 'history' | 'prescriptions' | 'certificates' | 'financial' | 'odontogram';
   openNewConsultation?: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<'details' | 'history' | 'prescriptions' | 'certificates' | 'financial'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'details' | 'history' | 'prescriptions' | 'certificates' | 'financial' | 'odontogram'>(initialTab);
   const [printMode, setPrintMode] = useState<'history' | 'prescription' | 'exam' | 'certificate' | 'details' | 'budget' | 'receipt'>('details');
   const [settings, setSettings] = useState<ClinicSettings | null>(null);
 
@@ -670,6 +671,13 @@ export default function PatientModal({
             >
               <DollarSign className="h-4 w-4" />
               Financeiro
+            </button>
+            <button 
+              onClick={() => setActiveTab('odontogram')}
+              className={`py-4 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'odontogram' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+              <Activity className="h-4 w-4" />
+              Odontograma
             </button>
           </div>
         </div>
@@ -1943,6 +1951,42 @@ export default function PatientModal({
             </div>
           </motion.div>
           )}
+            {activeTab === 'odontogram' && (
+              <motion.div 
+                key="odontogram"
+                layout
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ type: "spring", stiffness: 1000, damping: 50 }}
+                className="space-y-6 w-full"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-slate-800">Odontograma Completo</h3>
+                  <button
+                    onClick={() => {
+                      savePatient(patient);
+                      alert('Odontograma salvo com sucesso!');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    <Save className="h-4 w-4" />
+                    Salvar Alterações
+                  </button>
+                </div>
+                
+                <Odontogram 
+                  data={patient.odontogram || {}} 
+                  onChange={(newData) => {
+                    const updatedPatient = {
+                      ...patient,
+                      odontogram: newData
+                    };
+                    onUpdate(updatedPatient);
+                  }} 
+                />
+              </motion.div>
+            )}
           </AnimatePresence>
 
           {/* Print Footer */}

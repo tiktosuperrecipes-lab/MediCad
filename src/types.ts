@@ -147,4 +147,21 @@ export interface Patient {
   budgets?: Budget[];
   payments?: Payment[];
   financeiro?: (Budget | Payment)[];
+
+  // Odontograma
+  odontogram?: OdontogramData;
+}
+
+export interface ToothCondition {
+  top?: 'caries' | 'restored' | 'none';
+  bottom?: 'caries' | 'restored' | 'none';
+  left?: 'caries' | 'restored' | 'none';
+  right?: 'caries' | 'restored' | 'none';
+  center?: 'caries' | 'restored' | 'none';
+  status?: 'missing' | 'implant' | 'endodontics' | 'none';
+  notes?: string;
+}
+
+export interface OdontogramData {
+  [toothNumber: string]: ToothCondition;
 }
