@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX, AlertCircle, MessageCircle } from 'lucide-react';
+import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX, AlertCircle, MessageCircle, Check, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto, OdontogramData } from '../types';
 import { savePatient, addClinicalEvolution, addFinancialRecord, updateFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution } from '../lib/storage';
@@ -80,11 +80,27 @@ export default function PatientModal({
     method: 'pix' as Payment['method'],
     procedure: '',
     notes: '',
-    receiptIssued: false
+    receiptIssued: false,
+    installments: 1,
+    cardFee: 0,
+    linkedBudgetId: ''
   });
 
   const [newPhotoSize, setNewPhotoSize] = useState<number | null>(null);
   const [editingEvolution, setEditingEvolution] = useState<{index: number, text: string} | null>(null);
+
+  // Auto-calculate card fees
+  useEffect(() => {
+    if ((paymentForm.method === 'credit' || paymentForm.method === 'debit') && paymentForm.amount > 0 && settings?.cardFees) {
+      const feeConfig = settings.cardFees.find(f => f.installments === (paymentForm.method === 'debit' ? 1 : paymentForm.installments));
+      if (feeConfig) {
+        const calculatedFee = (paymentForm.amount * feeConfig.percentage) / 100;
+        setPaymentForm(prev => ({ ...prev, cardFee: Number(calculatedFee.toFixed(2)) }));
+      }
+    } else if (paymentForm.method !== 'credit' && paymentForm.method !== 'debit') {
+      setPaymentForm(prev => ({ ...prev, cardFee: 0 }));
+    }
+  }, [paymentForm.method, paymentForm.installments, paymentForm.amount, settings?.cardFees]);
 
   const patientSize = useMemo(() => {
     try {
@@ -94,6 +110,22 @@ export default function PatientModal({
       return 0;
     }
   }, [patient]);
+
+  const availableBudgets = useMemo(() => {
+    const budgets = [
+      ...(patient.budgets || []),
+      ...(patient.financeiro?.filter(f => (f as any).recordType === 'budget') as Budget[] || [])
+    ];
+    // Deduplicate by ID
+    return Array.from(new Map(budgets.map(b => [b.id, b])).values());
+  }, [patient]);
+
+  const totalDebt = useMemo(() => {
+    return availableBudgets.reduce((sum, b) => {
+      const remaining = b.finalAmount - (b.paidAmount || 0);
+      return sum + Math.max(0, remaining);
+    }, 0);
+  }, [availableBudgets]);
 
   const handlePrint = (mode: 'history' | 'prescription' | 'exam' | 'certificate' | 'details' | 'budget' | 'receipt', callback?: () => void) => {
     setPrintMode(mode);
@@ -335,7 +367,10 @@ export default function PatientModal({
       finalAmount,
       status: 'pending',
       paymentNotes: budgetPaymentNotes,
-      recordType: 'budget'
+      recordType: 'budget',
+      paidAmount: editingBudgetId 
+        ? (patient.financeiro?.find(f => (f as any).id === editingBudgetId) as Budget)?.paidAmount || 0
+        : 0
     };
 
     try {
@@ -426,6 +461,8 @@ export default function PatientModal({
       return;
     }
 
+    const netAmount = paymentForm.amount - paymentForm.cardFee;
+
     const newPayment: Payment & { recordType: 'payment', procedure?: string } = {
       id: crypto.randomUUID(),
       date: getLocalDateString(),
@@ -436,19 +473,40 @@ export default function PatientModal({
       status: 'Pendente',
       receiptIssued: paymentForm.receiptIssued,
       receiptDate: paymentForm.receiptIssued ? getLocalDateString() : undefined,
-      recordType: 'payment'
+      recordType: 'payment',
+      installments: paymentForm.method === 'credit' ? paymentForm.installments : undefined,
+      cardFee: (paymentForm.method === 'credit' || paymentForm.method === 'debit') ? paymentForm.cardFee : 0,
+      netAmount: (paymentForm.method === 'credit' || paymentForm.method === 'debit') ? netAmount : paymentForm.amount,
+      linkedBudgetId: paymentForm.linkedBudgetId || undefined
     };
 
     try {
       await addFinancialRecord(patient.id, newPayment);
       
-      const updatedPatient = {
-        ...patient,
-        financeiro: [newPayment, ...(patient.financeiro || [])]
-      };
+      let updatedPatient = { ...patient };
+
+      if (paymentForm.linkedBudgetId) {
+        // Update budget paidAmount in both arrays for safety
+        updatedPatient.budgets = updatedPatient.budgets?.map(b => 
+          b.id === paymentForm.linkedBudgetId ? { ...b, paidAmount: (b.paidAmount || 0) + paymentForm.amount } : b
+        );
+        updatedPatient.financeiro = updatedPatient.financeiro?.map(f => 
+          (f as any).id === paymentForm.linkedBudgetId && (f as any).recordType === 'budget' 
+            ? { ...f, paidAmount: ((f as any).paidAmount || 0) + paymentForm.amount } 
+            : f
+        );
+        
+        // Find the updated budget to sync with Firestore
+        const updatedBudget = updatedPatient.financeiro?.find(f => (f as any).id === paymentForm.linkedBudgetId && (f as any).recordType === 'budget');
+        if (updatedBudget) {
+          await updateFinancialRecord(patient.id, updatedBudget as any);
+        }
+      }
+      
+      updatedPatient.financeiro = [newPayment, ...(updatedPatient.financeiro || [])];
 
       onUpdate(updatedPatient);
-      setPaymentForm({ amount: 0, method: 'pix', procedure: '', notes: '', receiptIssued: false });
+      setPaymentForm({ amount: 0, method: 'pix', procedure: '', notes: '', receiptIssued: false, installments: 1, cardFee: 0, linkedBudgetId: '' });
       alert('Pagamento registrado com sucesso no Firebase!');
     } catch (error) {
       alert('Erro ao registrar pagamento no Firebase.');
@@ -459,14 +517,35 @@ export default function PatientModal({
     if (!window.confirm('Tem certeza que deseja excluir este pagamento? Ele também será removido do financeiro geral.')) return;
     
     try {
+      // Find the payment to check if it was linked to a budget
+      const paymentToDelete = patient.financeiro?.find((f: any) => f.id === id && f.recordType === 'payment') as Payment;
+
       // Tenta remover do financeiro geral primeiro
       await deleteGlobalFinancialRecord(id).catch(err => console.warn("Registro não encontrado no financeiro geral:", err));
 
-      const updatedPatient = {
+      let updatedPatient = {
         ...patient,
         payments: patient.payments?.filter(p => p.id !== id),
         financeiro: patient.financeiro?.filter((f: any) => f.id !== id)
       };
+
+      // If it was linked to a budget, decrease the paidAmount
+      if (paymentToDelete?.linkedBudgetId) {
+        updatedPatient.budgets = updatedPatient.budgets?.map(b => 
+          b.id === paymentToDelete.linkedBudgetId ? { ...b, paidAmount: Math.max(0, (b.paidAmount || 0) - paymentToDelete.amount) } : b
+        );
+        updatedPatient.financeiro = updatedPatient.financeiro?.map(f => 
+          (f as any).id === paymentToDelete.linkedBudgetId && (f as any).recordType === 'budget' 
+            ? { ...f, paidAmount: Math.max(0, ((f as any).paidAmount || 0) - paymentToDelete.amount) } 
+            : f
+        );
+
+        // Sync budget update to Firestore
+        const updatedBudget = updatedPatient.financeiro?.find(f => (f as any).id === paymentToDelete.linkedBudgetId && (f as any).recordType === 'budget');
+        if (updatedBudget) {
+          await updateFinancialRecord(patient.id, updatedBudget as any);
+        }
+      }
       
       await savePatient(updatedPatient);
       onUpdate(updatedPatient);
@@ -1379,6 +1458,24 @@ export default function PatientModal({
             className={`${printMode === 'budget' || printMode === 'receipt' ? 'print:block' : 'print:hidden'} w-full`}
           >
             
+            {/* Resumo de Débito */}
+            {totalDebt > 0 && (
+              <div className="mb-8 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between print:hidden">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-rose-800 uppercase tracking-wider">Débito Pendente</h4>
+                    <p className="text-xs text-rose-600">O paciente possui pagamentos em aberto.</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-black text-rose-700">{formatCurrency(totalDebt)}</p>
+                </div>
+              </div>
+            )}
+
             {/* Orçamentos */}
             <div className={`mb-12 ${printMode === 'receipt' ? 'print:hidden' : ''}`}>
               <div className="flex items-center justify-between mb-6 print:hidden">
@@ -1612,6 +1709,36 @@ export default function PatientModal({
               {printMode !== 'receipt' && (
                 <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-8 print:hidden">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                    <div className="md:col-span-6">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Vincular a Orçamento (Opcional)</label>
+                      <select
+                        value={paymentForm.linkedBudgetId}
+                        onChange={(e) => {
+                          const budgetId = e.target.value;
+                          setPaymentForm(prev => {
+                            const newState = { ...prev, linkedBudgetId: budgetId };
+                            if (budgetId) {
+                              const budget = availableBudgets.find(b => b.id === budgetId);
+                              if (budget) {
+                                const remaining = budget.finalAmount - (budget.paidAmount || 0);
+                                newState.amount = Math.max(0, remaining);
+                                newState.procedure = `Pagamento: ${budget.items.map(i => i.name).join(', ')}`;
+                              }
+                            }
+                            return newState;
+                          });
+                        }}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white"
+                      >
+                        <option value="">Nenhum orçamento vinculado</option>
+                        {availableBudgets.filter(b => (b.finalAmount - (b.paidAmount || 0)) > 0).map(budget => (
+                          <option key={budget.id} value={budget.id}>
+                            {formatDateShort(budget.date)} - {budget.items.map(i => i.name).join(', ')} (Falta: {formatCurrency(budget.finalAmount - (budget.paidAmount || 0))})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
                     <div className="md:col-span-3">
                       <label className="block text-sm font-medium text-slate-700 mb-1">Valor (R$)</label>
                       <input
@@ -1637,7 +1764,35 @@ export default function PatientModal({
                         <option value="transfer">Transferência</option>
                       </select>
                     </div>
-                    <div className="md:col-span-3">
+
+                    {paymentForm.method === 'credit' && (
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Parcelas</label>
+                        <select
+                          value={paymentForm.installments}
+                          onChange={(e) => setPaymentForm({...paymentForm, installments: parseInt(e.target.value)})}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none bg-white"
+                        >
+                          {[1, 2, 3, 4, 5, 6, 10, 12].map(n => (
+                            <option key={n} value={n}>{n}x</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {(paymentForm.method === 'credit' || paymentForm.method === 'debit') && (
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Taxa (R$)</label>
+                        <input
+                          type="number"
+                          value={paymentForm.cardFee}
+                          onChange={(e) => setPaymentForm({...paymentForm, cardFee: parseFloat(e.target.value) || 0})}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none bg-rose-50 text-rose-700 font-medium"
+                        />
+                      </div>
+                    )}
+
+                    <div className={paymentForm.method === 'credit' ? 'md:col-span-4' : (paymentForm.method === 'debit' ? 'md:col-span-4' : 'md:col-span-6')}>
                       <div className="flex items-center justify-between mb-1">
                         <label className="block text-sm font-medium text-slate-700">Procedimento (Opcional)</label>
                         {settings?.procedures && settings.procedures.length > 0 && (
@@ -1921,6 +2076,27 @@ export default function PatientModal({
                               {budget.paymentNotes && (
                                 <div className="mt-3 pt-3 border-t border-slate-100 text-slate-500 italic text-xs">
                                   <span className="font-bold not-italic text-slate-700">Plano/Obs:</span> {budget.paymentNotes}
+                                </div>
+                              )}
+
+                              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status de Pagamento</div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-slate-500">Pago: {formatCurrency(budget.paidAmount || 0)}</span>
+                                  <span className="text-xs font-bold text-slate-900">/</span>
+                                  <span className="text-xs text-slate-500">Total: {formatCurrency(budget.finalAmount)}</span>
+                                </div>
+                              </div>
+                              
+                              {(budget.finalAmount - (budget.paidAmount || 0)) > 0 ? (
+                                <div className="mt-2 p-2 bg-rose-50 text-rose-700 rounded-lg text-xs font-bold flex justify-between items-center">
+                                  <span>DÉBITO RESTANTE:</span>
+                                  <span>{formatCurrency(budget.finalAmount - (budget.paidAmount || 0))}</span>
+                                </div>
+                              ) : (
+                                <div className="mt-2 p-2 bg-teal-50 text-teal-700 rounded-lg text-xs font-bold flex justify-center items-center gap-1">
+                                  <Check className="h-3 w-3" />
+                                  TOTALMENTE PAGO
                                 </div>
                               )}
                             </div>

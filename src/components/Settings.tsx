@@ -25,6 +25,7 @@ export default function Settings({ onSave }: SettingsProps) {
   const [isAuth, setIsAuth] = useState(false);
   const [resetStatus, setResetStatus] = useState<{type: string, success: boolean} | null>(null);
   const [newProcedure, setNewProcedure] = useState({ name: '', description: '', basePrice: 0 });
+  const [newCardFee, setNewCardFee] = useState({ installments: 1, percentage: 0 });
 
   const RESET_PASSWORD = 'Samuel20206@';
 
@@ -98,6 +99,23 @@ export default function Settings({ onSave }: SettingsProps) {
     setSettings({
       ...settings,
       procedures: settings.procedures?.filter(p => p.id !== id)
+    });
+  };
+
+  const handleAddCardFee = () => {
+    if (newCardFee.percentage < 0) return;
+    const fee = { ...newCardFee, id: crypto.randomUUID() };
+    setSettings({
+      ...settings,
+      cardFees: [...(settings.cardFees || []), fee].sort((a, b) => a.installments - b.installments)
+    });
+    setNewCardFee({ installments: 1, percentage: 0 });
+  };
+
+  const handleRemoveCardFee = (id: string) => {
+    setSettings({
+      ...settings,
+      cardFees: settings.cardFees?.filter(f => f.id !== id)
     });
   };
 
@@ -296,6 +314,81 @@ export default function Settings({ onSave }: SettingsProps) {
                 ) : (
                   <div className="text-center py-6 bg-slate-50 rounded-lg border border-dashed border-slate-200">
                     <p className="text-sm text-slate-400">Nenhum procedimento cadastrado.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 pt-6 mt-2">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-rose-600" />
+                  <h3 className="text-sm font-semibold text-slate-800">Taxas de Cartão (Crédito/Débito)</h3>
+                </div>
+              </div>
+              
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+                <p className="text-xs text-slate-500 mb-4">Configure as taxas que serão descontadas automaticamente ao registrar pagamentos em cartão.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Parcelas</label>
+                    <select
+                      value={newCardFee.installments}
+                      onChange={(e) => setNewCardFee({...newCardFee, installments: Number(e.target.value)})}
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none bg-white"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                        <option key={n} value={n}>{n === 1 ? '1x (ou Débito)' : `${n}x`}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Taxa (%)</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Ex: 2.5"
+                        value={newCardFee.percentage || ''}
+                        onChange={(e) => setNewCardFee({...newCardFee, percentage: Number(e.target.value)})}
+                        className="w-full pr-8 pl-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 outline-none"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={handleAddCardFee}
+                      className="w-full px-4 py-2 bg-rose-600 text-white text-sm font-bold rounded-lg hover:bg-rose-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Adicionar Taxa
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+                {settings.cardFees && settings.cardFees.length > 0 ? (
+                  settings.cardFees.map((fee) => (
+                    <div key={fee.id} className="flex items-center justify-between p-2 bg-white border border-slate-200 rounded-lg group">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{fee.installments === 1 ? '1x / Débito' : `${fee.installments}x`}</span>
+                        <span className="font-bold text-rose-600 text-sm">{fee.percentage}%</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCardFee(fee.id)}
+                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                    <p className="text-xs text-slate-400">Nenhuma taxa configurada.</p>
                   </div>
                 )}
               </div>

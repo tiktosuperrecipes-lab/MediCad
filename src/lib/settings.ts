@@ -9,6 +9,12 @@ export interface Procedure {
   category?: string;
 }
 
+export interface CardFee {
+  id: string;
+  installments: number;
+  percentage: number;
+}
+
 export interface ClinicSettings {
   name: string;
   address: string;
@@ -19,6 +25,7 @@ export interface ClinicSettings {
   agendaStartTime?: string;
   agendaEndTime?: string;
   procedures?: Procedure[];
+  cardFees?: CardFee[];
 }
 
 const DEFAULT_SETTINGS: ClinicSettings = {
@@ -30,7 +37,16 @@ const DEFAULT_SETTINGS: ClinicSettings = {
   cpf: '',
   agendaStartTime: '08:00',
   agendaEndTime: '18:00',
-  procedures: []
+  procedures: [],
+  cardFees: [
+    { id: '1', installments: 1, percentage: 2.5 },
+    { id: '2', installments: 2, percentage: 3.5 },
+    { id: '3', installments: 3, percentage: 4.5 },
+    { id: '4', installments: 4, percentage: 5.5 },
+    { id: '5', installments: 5, percentage: 6.5 },
+    { id: '6', installments: 6, percentage: 7.5 },
+    { id: '12', installments: 12, percentage: 12.0 },
+  ]
 };
 
 const SETTINGS_DOC_ID = 'clinica_principal';

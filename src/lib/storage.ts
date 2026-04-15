@@ -199,7 +199,10 @@ export async function addFinancialRecord(patientId: string, record: any): Promis
         procedure: record.procedure || record.notes || 'Pagamento avulso',
         status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
         receiptIssued: record.receiptIssued || false,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        installments: record.installments,
+        cardFee: record.cardFee,
+        netAmount: record.netAmount
       });
     }
   } catch (error) {

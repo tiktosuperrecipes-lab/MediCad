@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calculator, DollarSign, TrendingUp, TrendingDown, FileText, AlertCircle, Printer, Download, CheckCircle, Clock, Plus, Trash2, BookOpen, BarChart3 } from 'lucide-react';
+import { Calculator, DollarSign, TrendingUp, TrendingDown, FileText, AlertCircle, Printer, Download, CheckCircle, Clock, Plus, Trash2, BookOpen, BarChart3, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient, GlobalFinancialRecord, ExpenseRecord } from '../types';
 import { calculateMonthlyIR } from '../lib/taxCalculator';
@@ -134,6 +134,8 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
               patientName: patient.fullName,
               date: record.date,
               amount: record.amount,
+              netAmount: record.netAmount || record.amount,
+              cardFee: record.cardFee || 0,
               method: record.method,
               procedure: record.notes || 'Pagamento registrado no prontuário',
               status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
@@ -159,6 +161,8 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
               patientName: patient.fullName,
               date: record.date,
               amount: record.amount,
+              netAmount: record.netAmount || record.amount,
+              cardFee: record.cardFee || 0,
               method: record.method,
               procedure: record.notes || 'Pagamento antigo',
               status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
@@ -184,8 +188,8 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
       receivedTotal: receivedList.reduce((sum, r) => sum + r.amount, 0),
       unifiedPendingRecords: pendingList,
       unifiedReceivedRecords: receivedList,
-      monthlyIncome: receivedList.reduce((sum, r) => sum + r.amount, 0),
-      monthlyDeclaredIncome: receivedList.filter(r => r.receiptIssued).reduce((sum, r) => sum + r.amount, 0)
+      monthlyIncome: receivedList.reduce((sum, r) => sum + (r.netAmount || r.amount), 0),
+      monthlyDeclaredIncome: receivedList.filter(r => r.receiptIssued).reduce((sum, r) => sum + (r.netAmount || r.amount), 0)
     };
   }, [globalRecords, patients, selectedYear, selectedMonth]);
 
@@ -210,6 +214,8 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
               id: record.id,
               status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
               amount: record.amount,
+              netAmount: record.netAmount || record.amount,
+              cardFee: record.cardFee || 0,
               receiptIssued: record.receiptIssued || false
             };
             allRecordsMap.set(record.id, unifiedRecord);
@@ -230,6 +236,8 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
               id: record.id,
               status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
               amount: record.amount,
+              netAmount: record.netAmount || record.amount,
+              cardFee: record.cardFee || 0,
               receiptIssued: record.receiptIssued || false
             };
             allRecordsMap.set(record.id, unifiedRecord);
@@ -247,8 +255,8 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
     const paidRecords = allRecords.filter(r => r.status === 'Pago');
 
     return { 
-      annualIncome: paidRecords.reduce((sum, r) => sum + r.amount, 0), 
-      annualDeclaredIncome: paidRecords.filter(r => r.receiptIssued).reduce((sum, r) => sum + r.amount, 0) 
+      annualIncome: paidRecords.reduce((sum, r) => sum + (r.netAmount || r.amount), 0), 
+      annualDeclaredIncome: paidRecords.filter(r => r.receiptIssued).reduce((sum, r) => sum + (r.netAmount || r.amount), 0) 
     };
   }, [globalRecords, patients, selectedYear]);
 
@@ -285,6 +293,18 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
   };
 
   const patientForReceipt = patients.find(p => p.id === selectedPatientForReceipt);
+
+  const totalOutstandingDebt = useMemo(() => {
+    return patients.reduce((total, patient) => {
+      const budgets = [
+        ...(patient.budgets || []),
+        ...(patient.financeiro?.filter(f => (f as any).recordType === 'budget') as any[] || [])
+      ];
+      const uniqueBudgets = Array.from(new Map(budgets.map(b => [b.id, b])).values());
+      const patientDebt = uniqueBudgets.reduce((sum, b) => sum + Math.max(0, b.finalAmount - (b.paidAmount || 0)), 0);
+      return total + patientDebt;
+    }, 0);
+  }, [patients]);
   
   const { patientAnnualTotal, patientAnnualUndeclared } = useMemo(() => {
     if (!patientForReceipt) return { patientAnnualTotal: 0, patientAnnualUndeclared: 0 };
@@ -438,7 +458,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
             className="space-y-6"
           >
             {/* Cashflow Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <motion.div variants={itemVariants} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
@@ -450,6 +470,19 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receivedTotal)}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">Total de pagamentos com status 'Pago'</p>
+              </motion.div>
+
+              <motion.div variants={itemVariants} className="bg-rose-50 p-6 rounded-xl border border-rose-200 shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <h3 className="font-semibold text-rose-800">Débitos Totais</h3>
+                </div>
+                <p className="text-3xl font-bold text-rose-700">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalOutstandingDebt)}
+                </p>
+                <p className="text-xs text-rose-600 mt-1 italic">Soma de todos os orçamentos não quitados.</p>
               </motion.div>
 
               <motion.div variants={itemVariants} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -533,6 +566,11 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-slate-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(record.amount)}</p>
+                            {record.cardFee > 0 && (
+                              <p className="text-[10px] text-rose-500 font-medium">
+                                - {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(record.cardFee)} (Líquido: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(record.netAmount)})
+                              </p>
+                            )}
                             <button
                               onClick={() => handleToggleReceipt(record.id, !!record.receiptIssued)}
                               className={`text-[10px] font-bold mt-1 underline ${record.receiptIssued ? 'text-rose-600 hover:text-rose-700' : 'text-teal-600 hover:text-teal-700'}`}

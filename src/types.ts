@@ -48,6 +48,7 @@ export interface Budget {
   finalAmount: number;
   status: 'pending' | 'approved' | 'rejected';
   paymentNotes?: string;
+  paidAmount?: number;
 }
 
 export interface Payment {
@@ -59,6 +60,10 @@ export interface Payment {
   status?: 'Pendente' | 'Pago';
   receiptIssued?: boolean;
   receiptDate?: string;
+  installments?: number;
+  cardFee?: number;
+  netAmount?: number;
+  linkedBudgetId?: string;
 }
 
 export interface Appointment {
@@ -89,6 +94,9 @@ export interface GlobalFinancialRecord {
   status: 'Pendente' | 'Pago';
   receiptIssued?: boolean;
   createdAt: string;
+  installments?: number;
+  cardFee?: number;
+  netAmount?: number;
 }
 
 export interface ExpenseRecord {
