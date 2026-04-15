@@ -208,6 +208,36 @@ export async function addFinancialRecord(patientId: string, record: any): Promis
   }
 }
 
+export async function updateFinancialRecord(patientId: string, updatedRecord: any): Promise<void> {
+  try {
+    const patientRef = doc(db, 'pacientes', patientId);
+    const { getDoc } = await import('firebase/firestore');
+    const docSnap = await getDoc(patientRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      const financeiro = data.financeiro || [];
+      const newFinanceiro = financeiro.map((f: any) => f.id === updatedRecord.id ? updatedRecord : f);
+      
+      // Also check old budgets/payments arrays for compatibility if needed
+      let budgets = data.budgets || [];
+      let payments = data.payments || [];
+      
+      const newBudgets = budgets.map((b: any) => b.id === updatedRecord.id ? updatedRecord : b);
+      const newPayments = payments.map((p: any) => p.id === updatedRecord.id ? updatedRecord : p);
+
+      await updateDoc(patientRef, { 
+        financeiro: newFinanceiro,
+        budgets: newBudgets,
+        payments: newPayments
+      });
+    }
+  } catch (error) {
+    console.error("Erro ao atualizar registro financeiro:", error);
+    throw error;
+  }
+}
+
 export async function addPatientPhoto(patientId: string, base64Image: string): Promise<void> {
   try {
     const patientRef = doc(db, 'pacientes', patientId);

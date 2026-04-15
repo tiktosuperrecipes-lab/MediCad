@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX, AlertCircle, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto, OdontogramData } from '../types';
-import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution } from '../lib/storage';
+import { savePatient, addClinicalEvolution, addFinancialRecord, updateFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
 import { compressImage } from '../lib/imageUtils';
@@ -63,6 +63,7 @@ export default function PatientModal({
   const [currentBudgetItem, setCurrentBudgetItem] = useState({ description: '', quantity: 1, unitPrice: 0 });
   const [budgetDiscount, setBudgetDiscount] = useState(0);
   const [budgetPaymentNotes, setBudgetPaymentNotes] = useState('');
+  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
   const [printBudgetId, setPrintBudgetId] = useState<string | null>(null);
   const [printReceiptPaymentId, setPrintReceiptPaymentId] = useState<string | null>(null);
   
@@ -323,9 +324,11 @@ export default function PatientModal({
     const totalAmount = budgetItems.reduce((sum, item) => sum + item.total, 0);
     const finalAmount = totalAmount - budgetDiscount;
 
-    const newBudget: Budget & { recordType: 'budget' } = {
-      id: crypto.randomUUID(),
-      date: getLocalDateString(),
+    const budgetData: Budget & { recordType: 'budget' } = {
+      id: editingBudgetId || crypto.randomUUID(),
+      date: editingBudgetId 
+        ? (patient.financeiro?.find(f => (f as any).id === editingBudgetId) as Budget)?.date || getLocalDateString()
+        : getLocalDateString(),
       items: budgetItems,
       totalAmount,
       discount: budgetDiscount,
@@ -336,20 +339,54 @@ export default function PatientModal({
     };
 
     try {
-      await addFinancialRecord(patient.id, newBudget);
-      
-      const updatedPatient = {
-        ...patient,
-        financeiro: [newBudget, ...(patient.financeiro || [])]
-      };
+      if (editingBudgetId) {
+        await updateFinancialRecord(patient.id, budgetData);
+        
+        const updatedFinanceiro = (patient.financeiro || []).map(item => 
+          (item as any).id === editingBudgetId ? budgetData : item
+        );
+        
+        // Compatibility with old budgets array
+        const updatedBudgets = (patient.budgets || []).map(item => 
+          item.id === editingBudgetId ? budgetData : item
+        );
 
-      onUpdate(updatedPatient);
+        onUpdate({
+          ...patient,
+          financeiro: updatedFinanceiro,
+          budgets: updatedBudgets
+        });
+        alert('Orçamento atualizado com sucesso!');
+      } else {
+        await addFinancialRecord(patient.id, budgetData);
+        
+        const updatedPatient = {
+          ...patient,
+          financeiro: [budgetData, ...(patient.financeiro || [])]
+        };
+
+        onUpdate(updatedPatient);
+        alert('Orçamento salvo com sucesso!');
+      }
+      
       setBudgetItems([]);
       setBudgetDiscount(0);
       setBudgetPaymentNotes('');
-      alert('Orçamento salvo com sucesso no Firebase!');
+      setEditingBudgetId(null);
     } catch (error) {
       alert('Erro ao salvar orçamento no Firebase.');
+    }
+  };
+
+  const handleEditBudget = (budget: Budget) => {
+    setBudgetItems(budget.items);
+    setBudgetDiscount(budget.discount);
+    setBudgetPaymentNotes(budget.paymentNotes || '');
+    setEditingBudgetId(budget.id);
+    // Scroll to top of financial tab
+    const financialTab = document.getElementById('financial-tab-content');
+    if (financialTab) {
+      financialTab.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -368,6 +405,12 @@ export default function PatientModal({
   };
 
   const handleDeleteBudget = (id: string) => {
+    if (editingBudgetId === id) {
+      setEditingBudgetId(null);
+      setBudgetItems([]);
+      setBudgetDiscount(0);
+      setBudgetPaymentNotes('');
+    }
     const updatedPatient = {
       ...patient,
       budgets: patient.budgets?.filter(b => b.id !== id),
@@ -1327,6 +1370,7 @@ export default function PatientModal({
           {activeTab === 'financial' && (
           <motion.div 
             key="financial"
+            id="financial-tab-content"
             layout
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -1340,12 +1384,32 @@ export default function PatientModal({
               <div className="flex items-center justify-between mb-6 print:hidden">
                 <h3 className="text-lg font-semibold text-slate-800">Orçamento</h3>
                 <div className="flex items-center gap-2">
+                  {editingBudgetId && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-full border border-amber-200 animate-pulse">
+                      <Edit2 className="h-3 w-3" />
+                      MODO EDIÇÃO
+                    </div>
+                  )}
+                  {editingBudgetId && (
+                    <button 
+                      onClick={() => {
+                        setEditingBudgetId(null);
+                        setBudgetItems([]);
+                        setBudgetDiscount(0);
+                        setBudgetPaymentNotes('');
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium rounded-lg transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                      Cancelar Edição
+                    </button>
+                  )}
                   <button 
                     onClick={handleSaveBudget}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors"
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${editingBudgetId ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
                   >
                     <Save className="h-4 w-4" />
-                    Salvar Orçamento
+                    {editingBudgetId ? 'Atualizar Orçamento' : 'Salvar Orçamento'}
                   </button>
                   <button 
                     onClick={handlePrintCurrentBudget}
@@ -1819,6 +1883,13 @@ export default function PatientModal({
                                   {formatCurrency(budget.finalAmount)}
                                 </span>
                                 <button
+                                  onClick={() => handleEditBudget(budget)}
+                                  className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                  title="Editar Orçamento"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                                <button
                                   onClick={() => handlePrintSavedBudget(budget.id)}
                                   className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
                                   title="Imprimir Orçamento"
@@ -1961,6 +2032,13 @@ export default function PatientModal({
                             <span className="text-lg font-bold text-slate-500">
                               {formatCurrency(budget.finalAmount)}
                             </span>
+                            <button
+                              onClick={() => handleEditBudget(budget)}
+                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Editar Orçamento"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
                             <button
                               onClick={() => handlePrintSavedBudget(budget.id)}
                               className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
