@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, FileText, Trash2, User, Calendar, Phone, Edit2, Download, Upload, Activity } from 'lucide-react';
+import { Search, FileText, Trash2, User, Calendar, Phone, Edit2, Download, Upload, Activity, MessageCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Patient } from '../types';
 import { getPatients, deletePatient } from '../lib/storage';
@@ -216,9 +216,21 @@ export default function PatientList({
                     <FileText className="h-4 w-4 mr-2 text-slate-400" />
                     {patient.cpf}
                   </div>
-                  <div className="flex items-center text-sm text-slate-600">
+                  <div className="flex items-center text-sm text-slate-600 group">
                     <Phone className="h-4 w-4 mr-2 text-slate-400" />
                     {patient.whatsapp}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const cleanNumber = patient.whatsapp.replace(/\D/g, '');
+                        const finalNumber = cleanNumber.length <= 11 ? `55${cleanNumber}` : cleanNumber;
+                        window.open(`https://wa.me/${finalNumber}`, '_blank');
+                      }}
+                      className="ml-2 p-1 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                      title="Chamar no WhatsApp"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                   {patient.birthDate && (
                     <div className="flex items-center text-sm text-slate-600">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX, AlertCircle } from 'lucide-react';
+import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX, AlertCircle, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto } from '../types';
 import { savePatient, addClinicalEvolution, addFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution } from '../lib/storage';
@@ -732,6 +732,18 @@ export default function PatientModal({
                   <div className="flex items-center gap-2 font-medium text-slate-900">
                     <Phone className="h-4 w-4 text-slate-400 print:hidden" />
                     {patient.whatsapp}
+                    <button
+                      onClick={() => {
+                        const cleanNumber = patient.whatsapp.replace(/\D/g, '');
+                        const finalNumber = cleanNumber.length <= 11 ? `55${cleanNumber}` : cleanNumber;
+                        window.open(`https://wa.me/${finalNumber}`, '_blank');
+                      }}
+                      className="ml-1 p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors print:hidden flex items-center gap-1.5 text-xs"
+                      title="Chamar no WhatsApp"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      WhatsApp
+                    </button>
                   </div>
                 </div>
                 <div className="sm:col-span-2">
