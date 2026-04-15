@@ -83,7 +83,9 @@ export default function PatientModal({
     receiptIssued: false,
     installments: 1,
     cardFee: 0,
-    linkedBudgetId: ''
+    linkedBudgetId: '',
+    payerName: '',
+    payerCPF: ''
   });
 
   const [newPhotoSize, setNewPhotoSize] = useState<number | null>(null);
@@ -477,7 +479,9 @@ export default function PatientModal({
       installments: paymentForm.method === 'credit' ? paymentForm.installments : undefined,
       cardFee: (paymentForm.method === 'credit' || paymentForm.method === 'debit') ? paymentForm.cardFee : 0,
       netAmount: (paymentForm.method === 'credit' || paymentForm.method === 'debit') ? netAmount : paymentForm.amount,
-      linkedBudgetId: paymentForm.linkedBudgetId || undefined
+      linkedBudgetId: paymentForm.linkedBudgetId || undefined,
+      payerName: paymentForm.payerName || undefined,
+      payerCPF: paymentForm.payerCPF || undefined
     };
 
     try {
@@ -506,7 +510,18 @@ export default function PatientModal({
       updatedPatient.financeiro = [newPayment, ...(updatedPatient.financeiro || [])];
 
       onUpdate(updatedPatient);
-      setPaymentForm({ amount: 0, method: 'pix', procedure: '', notes: '', receiptIssued: false, installments: 1, cardFee: 0, linkedBudgetId: '' });
+      setPaymentForm({ 
+        amount: 0, 
+        method: 'pix', 
+        procedure: '', 
+        notes: '', 
+        receiptIssued: false, 
+        installments: 1, 
+        cardFee: 0, 
+        linkedBudgetId: '',
+        payerName: '',
+        payerCPF: ''
+      });
       alert('Pagamento registrado com sucesso no Firebase!');
     } catch (error) {
       alert('Erro ao registrar pagamento no Firebase.');
@@ -1722,7 +1737,7 @@ export default function PatientModal({
                               if (budget) {
                                 const remaining = budget.finalAmount - (budget.paidAmount || 0);
                                 newState.amount = Math.max(0, remaining);
-                                newState.procedure = `Pagamento: ${budget.items.map(i => i.name).join(', ')}`;
+                                newState.procedure = `Pagamento: ${budget.items.map(i => i.description).join(', ')}`;
                               }
                             }
                             return newState;
@@ -1733,7 +1748,7 @@ export default function PatientModal({
                         <option value="">Nenhum orçamento vinculado</option>
                         {availableBudgets.filter(b => (b.finalAmount - (b.paidAmount || 0)) > 0).map(budget => (
                           <option key={budget.id} value={budget.id}>
-                            {formatDateShort(budget.date)} - {budget.items.map(i => i.name).join(', ')} (Falta: {formatCurrency(budget.finalAmount - (budget.paidAmount || 0))})
+                            {formatDateShort(budget.date)} - {budget.items.map(i => i.description).join(', ')} (Falta: {formatCurrency(budget.finalAmount - (budget.paidAmount || 0))})
                           </option>
                         ))}
                       </select>
@@ -1835,7 +1850,33 @@ export default function PatientModal({
                         placeholder="Ex: Parcela 1/3"
                       />
                     </div>
-                    <div className="md:col-span-2 flex items-end pb-2">
+
+                    {paymentForm.receiptIssued && (
+                      <>
+                        <div className="md:col-span-4">
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Pagador (Se diferente do paciente)</label>
+                          <input
+                            type="text"
+                            value={paymentForm.payerName}
+                            onChange={(e) => setPaymentForm({...paymentForm, payerName: e.target.value})}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                            placeholder="Ex: Nome da Mãe/Pai"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-slate-700 mb-1">CPF do Pagador</label>
+                          <input
+                            type="text"
+                            value={paymentForm.payerCPF}
+                            onChange={(e) => setPaymentForm({...paymentForm, payerCPF: e.target.value})}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                            placeholder="000.000.000-00"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="md:col-span-2 flex flex-col justify-end pb-2">
                       <label className="flex items-center gap-2 cursor-pointer group">
                         <div className="relative flex items-center">
                           <input
@@ -1927,13 +1968,16 @@ export default function PatientModal({
                                 
                                 <div className="space-y-4 text-slate-800 leading-relaxed">
                                   <p>
-                                    Recebi(emos) de <strong>{patient.fullName}</strong>, 
-                                    {patient.cpf ? ` inscrito(a) no CPF sob o nº ${patient.cpf},` : ''} 
+                                    Recebi(emos) de <strong>{payment.payerName || patient.fullName}</strong>, 
+                                    {(payment.payerCPF || patient.cpf) ? ` inscrito(a) no CPF sob o nº ${payment.payerCPF || patient.cpf},` : ''} 
                                     a importância supra de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}, 
                                     referente a {(payment as any).procedure || 'serviços prestados em saúde'}.
                                   </p>
                                   {payment.notes && (
                                     <p><strong>Referente a:</strong> {payment.notes}</p>
+                                  )}
+                                  {payment.payerName && (
+                                    <p className="text-sm text-slate-500 italic">Paciente: {patient.fullName}</p>
                                   )}
                                 </div>
                               </div>

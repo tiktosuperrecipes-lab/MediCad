@@ -64,6 +64,8 @@ export interface Payment {
   cardFee?: number;
   netAmount?: number;
   linkedBudgetId?: string;
+  payerName?: string;
+  payerCPF?: string;
 }
 
 export interface Appointment {
@@ -97,6 +99,8 @@ export interface GlobalFinancialRecord {
   installments?: number;
   cardFee?: number;
   netAmount?: number;
+  payerName?: string;
+  payerCPF?: string;
 }
 
 export interface ExpenseRecord {

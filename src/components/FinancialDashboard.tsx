@@ -20,6 +20,8 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
   const [selectedMonth, setSelectedMonth] = useState(tMonth);
   const [printMode, setPrintMode] = useState(false);
   const [selectedPatientForReceipt, setSelectedPatientForReceipt] = useState<string>('');
+  const [annualPayerName, setAnnualPayerName] = useState<string>('');
+  const [annualPayerCPF, setAnnualPayerCPF] = useState<string>('');
   const [settings, setSettings] = useState<ClinicSettings | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<'cashflow' | 'expenses' | 'taxes' | 'simulator'>('cashflow');
   const [globalRecords, setGlobalRecords] = useState<GlobalFinancialRecord[]>([]);
@@ -305,6 +307,23 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
       return total + patientDebt;
     }, 0);
   }, [patients]);
+
+  const patientsWithDebt = useMemo(() => {
+    return patients.map(patient => {
+      const budgets = [
+        ...(patient.budgets || []),
+        ...(patient.financeiro?.filter(f => (f as any).recordType === 'budget') as any[] || [])
+      ];
+      const uniqueBudgets = Array.from(new Map(budgets.map(b => [b.id, b])).values());
+      const debt = uniqueBudgets.reduce((sum, b) => sum + Math.max(0, b.finalAmount - (b.paidAmount || 0)), 0);
+      return {
+        id: patient.id,
+        fullName: patient.fullName,
+        debt
+      };
+    }).filter(p => p.debt > 0)
+      .sort((a, b) => b.debt - a.debt);
+  }, [patients]);
   
   const { patientAnnualTotal, patientAnnualUndeclared } = useMemo(() => {
     if (!patientForReceipt) return { patientAnnualTotal: 0, patientAnnualUndeclared: 0 };
@@ -472,12 +491,22 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                 <p className="text-xs text-slate-500 mt-1">Total de pagamentos com status 'Pago'</p>
               </motion.div>
 
-              <motion.div variants={itemVariants} className="bg-rose-50 p-6 rounded-xl border border-rose-200 shadow-sm">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
-                    <AlertTriangle className="h-5 w-5" />
+              <motion.div 
+                variants={itemVariants} 
+                className="bg-rose-50 p-6 rounded-xl border border-rose-200 shadow-sm cursor-pointer hover:bg-rose-100 transition-colors group"
+                onClick={() => {
+                  const element = document.getElementById('patients-debt-list');
+                  if (element) element.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-rose-100 text-rose-600 rounded-lg group-hover:bg-rose-200 transition-colors">
+                      <AlertTriangle className="h-5 w-5" />
+                    </div>
+                    <h3 className="font-semibold text-rose-800">Débitos Totais</h3>
                   </div>
-                  <h3 className="font-semibold text-rose-800">Débitos Totais</h3>
+                  <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider group-hover:text-rose-600 transition-colors">Ver Lista ↓</span>
                 </div>
                 <p className="text-3xl font-bold text-rose-700">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalOutstandingDebt)}
@@ -588,6 +617,46 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                 </div>
               </motion.div>
             </div>
+
+            {/* Patients with Debt Section */}
+            <motion.div 
+              id="patients-debt-list"
+              variants={itemVariants} 
+              className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden scroll-mt-6"
+            >
+              <div className="px-6 py-4 border-b border-slate-200 bg-rose-50 flex items-center justify-between">
+                <h3 className="font-bold text-rose-800 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-rose-500" />
+                  Pacientes com Débitos Pendentes (Orçamentos)
+                </h3>
+                <span className="bg-rose-100 text-rose-700 text-xs font-bold px-2 py-1 rounded-full">
+                  {patientsWithDebt.length}
+                </span>
+              </div>
+              <div className="p-6">
+                {patientsWithDebt.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {patientsWithDebt.map(p => (
+                      <div key={p.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200 flex justify-between items-center">
+                        <div>
+                          <p className="font-bold text-slate-900">{p.fullName}</p>
+                          <p className="text-xs text-slate-500 uppercase font-medium">Saldo Devedor</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-rose-600">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.debt)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-slate-500 italic">
+                    Nenhum paciente com débito pendente no momento.
+                  </div>
+                )}
+              </div>
+            </motion.div>
           </motion.div>
         )}
 
@@ -764,6 +833,89 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
             className="space-y-6"
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
+              <motion.div variants={itemVariants} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm md:col-span-3">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-teal-100 text-teal-600 rounded-lg">
+                    <Printer className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-700">Gerar Recibo Anual</h3>
+                    <p className="text-xs text-slate-500">Gere um recibo consolidado de todos os pagamentos declarados do ano.</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                  <div className="md:col-span-1">
+                    <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">Selecionar Paciente</label>
+                    <select
+                      value={selectedPatientForReceipt}
+                      onChange={(e) => setSelectedPatientForReceipt(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white text-sm"
+                    >
+                      <option value="">Selecione...</option>
+                      {patients.sort((a, b) => a.fullName.localeCompare(b.fullName)).map(p => (
+                        <option key={p.id} value={p.id}>{p.fullName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-1">
+                    <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">Nome do Responsável (Opcional)</label>
+                    <input
+                      type="text"
+                      value={annualPayerName}
+                      onChange={(e) => setAnnualPayerName(e.target.value)}
+                      placeholder="Ex: Nome da Mãe"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none text-sm"
+                    />
+                  </div>
+
+                  <div className="md:col-span-1">
+                    <label className="block text-xs font-medium text-slate-500 mb-1 uppercase">CPF do Responsável (Opcional)</label>
+                    <input
+                      type="text"
+                      value={annualPayerCPF}
+                      onChange={(e) => setAnnualPayerCPF(e.target.value)}
+                      placeholder="000.000.000-00"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none text-sm"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handlePrintAnnualReceipt}
+                      disabled={!selectedPatientForReceipt || patientAnnualTotal === 0}
+                      className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                    >
+                      <Printer className="h-4 w-4" />
+                      Imprimir
+                    </button>
+                    <button
+                      onClick={handleDeclareAllForPatient}
+                      disabled={!selectedPatientForReceipt || patientAnnualUndeclared === 0}
+                      className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors text-sm"
+                      title="Marcar todos os pagamentos do ano como declarados"
+                    >
+                      Declarar Tudo
+                    </button>
+                  </div>
+                </div>
+
+                {selectedPatientForReceipt && (
+                  <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between">
+                    <div className="text-sm">
+                      <span className="text-slate-500">Total Declarado em {selectedYear}: </span>
+                      <span className="font-bold text-teal-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(patientAnnualTotal)}</span>
+                    </div>
+                    {patientAnnualUndeclared > 0 && (
+                      <div className="text-xs text-amber-600 font-medium">
+                        Existem {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(patientAnnualUndeclared)} não declarados.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+
               <motion.div variants={itemVariants} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-teal-100 text-teal-600 rounded-lg">
@@ -911,12 +1063,15 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
           <div className="bg-white border-2 border-slate-200 rounded-2xl p-10 mb-12">
             <div className="space-y-6 text-slate-800 text-lg leading-relaxed text-justify">
               <p>
-                Declaro para os devidos fins que recebi(emos) de <strong>{patientForReceipt.fullName}</strong>, 
-                {patientForReceipt.cpf ? ` inscrito(a) no CPF sob o nº ${patientForReceipt.cpf},` : ''} 
+                Declaro para os devidos fins que recebi(emos) de <strong>{annualPayerName || patientForReceipt.fullName}</strong>, 
+                {(annualPayerCPF || patientForReceipt.cpf) ? ` inscrito(a) no CPF sob o nº ${annualPayerCPF || patientForReceipt.cpf},` : ''} 
                 a importância total de <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(patientAnnualTotal)}</strong> 
                 {' '}({patientAnnualTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', currencyDisplay: 'name' })}), 
                 referente a serviços prestados em saúde durante o ano de {selectedYear}.
               </p>
+              {annualPayerName && (
+                <p className="text-sm text-slate-500 italic">Paciente: {patientForReceipt.fullName}</p>
+              )}
             </div>
           </div>
 
