@@ -57,6 +57,20 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
     return '#f8fafc'; // slate-50
   };
 
+  const getFaceName = (num: number, face: Face) => {
+    const isUpper = num >= 11 && num <= 28;
+    const isRightSide = (num >= 11 && num <= 18) || (num >= 41 && num <= 48);
+    
+    switch (face) {
+      case 'top': return 'Vestibular (V)';
+      case 'bottom': return isUpper ? 'Palatina (P)' : 'Lingual (L)';
+      case 'center': return (num % 10 <= 3) ? 'Incisal (I)' : 'Oclusal (O)';
+      case 'left': return isRightSide ? 'Distal (D)' : 'Mesial (M)';
+      case 'right': return isRightSide ? 'Mesial (M)' : 'Distal (D)';
+      default: return '';
+    }
+  };
+
   const renderTooth = (num: number) => {
     const toothData = data[num] || {};
     const isMissing = toothData.status === 'missing';
@@ -84,7 +98,9 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
                 stroke="#cbd5e1" 
                 strokeWidth="2"
                 onClick={(e) => { handleFaceClick(num, 'top'); }}
-              />
+              >
+                <title>{getFaceName(num, 'top')}</title>
+              </path>
               {/* Bottom Face */}
               <path 
                 d="M0 100 L100 100 L75 75 L25 75 Z" 
@@ -92,7 +108,9 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
                 stroke="#cbd5e1" 
                 strokeWidth="2"
                 onClick={(e) => { handleFaceClick(num, 'bottom'); }}
-              />
+              >
+                <title>{getFaceName(num, 'bottom')}</title>
+              </path>
               {/* Left Face */}
               <path 
                 d="M0 0 L0 100 L25 75 L25 25 Z" 
@@ -100,7 +118,9 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
                 stroke="#cbd5e1" 
                 strokeWidth="2"
                 onClick={(e) => { handleFaceClick(num, 'left'); }}
-              />
+              >
+                <title>{getFaceName(num, 'left')}</title>
+              </path>
               {/* Right Face */}
               <path 
                 d="M100 0 L100 100 L75 75 L75 25 Z" 
@@ -108,7 +128,9 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
                 stroke="#cbd5e1" 
                 strokeWidth="2"
                 onClick={(e) => { handleFaceClick(num, 'right'); }}
-              />
+              >
+                <title>{getFaceName(num, 'right')}</title>
+              </path>
               {/* Center Face */}
               <rect 
                 x="25" y="25" width="50" height="50" 
@@ -116,7 +138,9 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
                 stroke="#cbd5e1" 
                 strokeWidth="2"
                 onClick={(e) => { handleFaceClick(num, 'center'); }}
-              />
+              >
+                <title>{getFaceName(num, 'center')}</title>
+              </rect>
               
               {/* Status Indicators */}
               {isImplant && (
@@ -195,12 +219,30 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
             <h4 className="font-bold text-slate-800 flex items-center gap-2">
               Opções para o Dente {selectedTooth}
             </h4>
-            <button 
-              onClick={() => setSelectedTooth(null)}
-              className="text-xs text-slate-500 hover:text-slate-700 underline"
-            >
-              Fechar
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => {
+                  if (confirm(`Deseja limpar todas as marcações do dente ${selectedTooth}?`)) {
+                    onChange({
+                      ...data,
+                      [selectedTooth]: {
+                        top: 'none', bottom: 'none', left: 'none', right: 'none', center: 'none',
+                        status: 'none', notes: ''
+                      }
+                    });
+                  }
+                }}
+                className="text-[10px] text-red-500 hover:text-red-700 underline font-medium"
+              >
+                Limpar Dente
+              </button>
+              <button 
+                onClick={() => setSelectedTooth(null)}
+                className="text-xs text-slate-500 hover:text-slate-700 underline"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -241,33 +283,110 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
               />
             </div>
           </div>
+
+          <div className="mt-6 pt-4 border-t border-slate-200">
+            <label className="text-[10px] font-bold text-slate-400 uppercase mb-3 block">Resumo das Faces</label>
+            <div className="flex flex-wrap gap-4">
+              {(['top', 'bottom', 'left', 'right', 'center'] as Face[]).map(face => (
+                <div key={face} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
+                  <div 
+                    className="w-3 h-3 rounded-sm border border-slate-200" 
+                    style={{ backgroundColor: getFaceColor(selectedTooth, face) }}
+                  />
+                  <span className="text-[10px] font-bold text-slate-700">
+                    {getFaceName(selectedTooth, face)}
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    {data[selectedTooth]?.[face] === 'caries' ? '(Cárie)' : data[selectedTooth]?.[face] === 'restored' ? '(Restaurado)' : '(Saudável)'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </motion.div>
       )}
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-6 pt-4 border-t border-slate-100">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-red-500 rounded-sm" />
-          <span className="text-xs text-slate-600">Cárie / Problema</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-blue-500 rounded-sm" />
-          <span className="text-xs text-slate-600">Restauração / Tratado</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 border-2 border-emerald-500 rounded-full" />
-          <span className="text-xs text-slate-600">Implante</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 border-l-2 border-r-2 border-amber-500 border-dashed" />
-          <span className="text-xs text-slate-600">Canal (Endo)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-slate-100 relative overflow-hidden rounded-sm">
-            <div className="absolute inset-0 border-t border-red-400 rotate-45" />
-            <div className="absolute inset-0 border-t border-red-400 -rotate-45" />
+      <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
+        <div className="flex flex-wrap gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-red-500 rounded-sm" />
+            <span className="text-xs text-slate-600">Cárie / Problema</span>
           </div>
-          <span className="text-xs text-slate-600">Ausente</span>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-blue-500 rounded-sm" />
+            <span className="text-xs text-slate-600">Restauração / Tratado</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-emerald-500 rounded-full" />
+            <span className="text-xs text-slate-600">Implante</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-l-2 border-r-2 border-amber-500 border-dashed" />
+            <span className="text-xs text-slate-600">Canal (Endo)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-slate-100 relative overflow-hidden rounded-sm">
+              <div className="absolute inset-0 border-t border-red-400 rotate-45" />
+              <div className="absolute inset-0 border-t border-red-400 -rotate-45" />
+            </div>
+            <span className="text-xs text-slate-600">Ausente</span>
+          </div>
+        </div>
+
+        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+          <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-4 flex items-center gap-1">
+            <Info className="h-3 w-3" />
+            Guia de Faces (Nomenclatura Técnica)
+          </h4>
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
+            {/* Visual Map */}
+            <div className="relative w-20 h-20 bg-white rounded border border-slate-200 p-1 shadow-sm">
+              <svg viewBox="0 0 100 100" className="w-full h-full">
+                <path d="M0 0 L100 0 L75 25 L25 25 Z" fill="#f8fafc" stroke="#e2e8f0" />
+                <text x="50" y="18" fontSize="14" textAnchor="middle" fill="#94a3b8" fontWeight="bold">V</text>
+                
+                <path d="M0 100 L100 100 L75 75 L25 75 Z" fill="#f8fafc" stroke="#e2e8f0" />
+                <text x="50" y="92" fontSize="14" textAnchor="middle" fill="#94a3b8" fontWeight="bold">L/P</text>
+                
+                <path d="M0 0 L0 100 L25 75 L25 25 Z" fill="#f8fafc" stroke="#e2e8f0" />
+                <text x="14" y="55" fontSize="14" textAnchor="middle" fill="#94a3b8" fontWeight="bold">M/D</text>
+                
+                <path d="M100 0 L100 100 L75 75 L75 25 Z" fill="#f8fafc" stroke="#e2e8f0" />
+                <text x="86" y="55" fontSize="14" textAnchor="middle" fill="#94a3b8" fontWeight="bold">D/M</text>
+                
+                <rect x="25" y="25" width="50" height="50" fill="#f8fafc" stroke="#e2e8f0" />
+                <text x="50" y="55" fontSize="14" textAnchor="middle" fill="#94a3b8" fontWeight="bold">O/I</text>
+              </svg>
+            </div>
+
+            {/* Labels */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 flex-1">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-700">V - Vestibular</span>
+                <span className="text-[9px] text-slate-400">Face voltada para a bochecha/lábios</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-700">L / P - Lingual ou Palatina</span>
+                <span className="text-[9px] text-slate-400">Face voltada para a língua ou céu da boca</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-700">O / I - Oclusal ou Incisal</span>
+                <span className="text-[9px] text-slate-400">Face de mastigação ou corte</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-700">M - Mesial</span>
+                <span className="text-[9px] text-slate-400">Lado do dente voltado para o centro do arco</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-700">D - Distal</span>
+                <span className="text-[9px] text-slate-400">Lado do dente voltado para o fundo da boca</span>
+              </div>
+              <div className="text-[9px] text-teal-600 font-medium italic self-center">
+                * Passe o mouse sobre cada dente para ver a nomenclatura exata.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
