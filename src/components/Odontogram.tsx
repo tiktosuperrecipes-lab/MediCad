@@ -83,7 +83,7 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
                 fill={getFaceColor(num, 'top')} 
                 stroke="#cbd5e1" 
                 strokeWidth="2"
-                onClick={(e) => { e.stopPropagation(); handleFaceClick(num, 'top'); }}
+                onClick={(e) => { handleFaceClick(num, 'top'); }}
               />
               {/* Bottom Face */}
               <path 
@@ -91,7 +91,7 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
                 fill={getFaceColor(num, 'bottom')} 
                 stroke="#cbd5e1" 
                 strokeWidth="2"
-                onClick={(e) => { e.stopPropagation(); handleFaceClick(num, 'bottom'); }}
+                onClick={(e) => { handleFaceClick(num, 'bottom'); }}
               />
               {/* Left Face */}
               <path 
@@ -99,7 +99,7 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
                 fill={getFaceColor(num, 'left')} 
                 stroke="#cbd5e1" 
                 strokeWidth="2"
-                onClick={(e) => { e.stopPropagation(); handleFaceClick(num, 'left'); }}
+                onClick={(e) => { handleFaceClick(num, 'left'); }}
               />
               {/* Right Face */}
               <path 
@@ -107,7 +107,7 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
                 fill={getFaceColor(num, 'right')} 
                 stroke="#cbd5e1" 
                 strokeWidth="2"
-                onClick={(e) => { e.stopPropagation(); handleFaceClick(num, 'right'); }}
+                onClick={(e) => { handleFaceClick(num, 'right'); }}
               />
               {/* Center Face */}
               <rect 
@@ -115,7 +115,7 @@ export default function Odontogram({ data, onChange }: OdontogramProps) {
                 fill={getFaceColor(num, 'center')} 
                 stroke="#cbd5e1" 
                 strokeWidth="2"
-                onClick={(e) => { e.stopPropagation(); handleFaceClick(num, 'center'); }}
+                onClick={(e) => { handleFaceClick(num, 'center'); }}
               />
               
               {/* Status Indicators */}
