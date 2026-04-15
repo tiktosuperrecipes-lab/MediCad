@@ -8,15 +8,20 @@ export default function BusinessCalculator() {
   const [costValue, setCostValue] = useState<number>(0);
   const [issueReceipt, setIssueReceipt] = useState<boolean>(true);
   const [otherCosts, setOtherCosts] = useState<number>(0);
+  const [otherCostsType, setOtherCostsType] = useState<'fixed' | 'percentage'>('fixed');
 
   const results = useMemo(() => {
-    const grossProfit = treatmentValue - costValue - otherCosts;
+    const calculatedOtherCosts = otherCostsType === 'percentage' 
+      ? (treatmentValue * otherCosts) / 100 
+      : otherCosts;
+
+    const grossProfit = treatmentValue - costValue - calculatedOtherCosts;
     
     // Tax calculation
     // Since tax is progressive and monthly, we estimate the tax impact of THIS specific deal
     // as if it were the only income, or we can use a simplified average rate (e.g. 15-27%)
     // To be more helpful, we'll show the tax based on the progressive table for this value
-    const taxInfo = issueReceipt ? calculateMonthlyIR(treatmentValue, costValue + otherCosts) : { taxAmount: 0 };
+    const taxInfo = issueReceipt ? calculateMonthlyIR(treatmentValue, costValue + calculatedOtherCosts) : { taxAmount: 0 };
     const taxAmount = taxInfo.taxAmount;
     
     const netProfit = grossProfit - taxAmount;
@@ -50,9 +55,10 @@ export default function BusinessCalculator() {
       margin,
       markup,
       status,
-      message
+      message,
+      calculatedOtherCosts
     };
-  }, [treatmentValue, costValue, issueReceipt, otherCosts]);
+  }, [treatmentValue, costValue, issueReceipt, otherCosts, otherCostsType]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -111,12 +117,30 @@ export default function BusinessCalculator() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
-              <Percent className="h-4 w-4 text-slate-400" />
-              Outros Custos (Taxa de Cartão / Comissão)
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <Percent className="h-4 w-4 text-slate-400" />
+                Taxa de Cartão / Comissão
+              </label>
+              <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                <button
+                  onClick={() => setOtherCostsType('fixed')}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${otherCostsType === 'fixed' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  R$
+                </button>
+                <button
+                  onClick={() => setOtherCostsType('percentage')}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${otherCostsType === 'percentage' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  %
+                </button>
+              </div>
+            </div>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">R$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">
+                {otherCostsType === 'fixed' ? 'R$' : '%'}
+              </span>
               <input
                 type="number"
                 value={otherCosts || ''}
@@ -125,6 +149,11 @@ export default function BusinessCalculator() {
                 placeholder="0,00"
               />
             </div>
+            {otherCostsType === 'percentage' && treatmentValue > 0 && (
+              <p className="mt-1 text-[10px] text-slate-500">
+                Equivale a {formatCurrency((treatmentValue * otherCosts) / 100)}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
@@ -202,6 +231,14 @@ export default function BusinessCalculator() {
           </div>
 
           <div className="space-y-3">
+            <div className="flex justify-between items-center p-3 border-b border-slate-100 text-sm">
+              <span className="text-slate-600">Custo Direto</span>
+              <span className="font-medium text-red-600">- {formatCurrency(costValue)}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 border-b border-slate-100 text-sm">
+              <span className="text-slate-600">Taxas / Comissões</span>
+              <span className="font-medium text-red-600">- {formatCurrency(results.calculatedOtherCosts)}</span>
+            </div>
             <div className="flex justify-between items-center p-3 border-b border-slate-100">
               <span className="text-slate-600">Lucro Bruto (Sem Imposto)</span>
               <span className="font-bold text-slate-900">{formatCurrency(results.grossProfit)}</span>
