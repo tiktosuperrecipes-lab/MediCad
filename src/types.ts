@@ -47,6 +47,7 @@ export interface Budget {
   discount: number;
   finalAmount: number;
   status: 'pending' | 'approved' | 'rejected';
+  paymentNotes?: string;
 }
 
 export interface Payment {

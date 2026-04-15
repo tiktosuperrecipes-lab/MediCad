@@ -62,6 +62,7 @@ export default function PatientModal({
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
   const [currentBudgetItem, setCurrentBudgetItem] = useState({ description: '', quantity: 1, unitPrice: 0 });
   const [budgetDiscount, setBudgetDiscount] = useState(0);
+  const [budgetPaymentNotes, setBudgetPaymentNotes] = useState('');
   const [printBudgetId, setPrintBudgetId] = useState<string | null>(null);
   const [printReceiptPaymentId, setPrintReceiptPaymentId] = useState<string | null>(null);
   
@@ -330,6 +331,7 @@ export default function PatientModal({
       discount: budgetDiscount,
       finalAmount,
       status: 'pending',
+      paymentNotes: budgetPaymentNotes,
       recordType: 'budget'
     };
 
@@ -344,6 +346,7 @@ export default function PatientModal({
       onUpdate(updatedPatient);
       setBudgetItems([]);
       setBudgetDiscount(0);
+      setBudgetPaymentNotes('');
       alert('Orçamento salvo com sucesso no Firebase!');
     } catch (error) {
       alert('Erro ao salvar orçamento no Firebase.');
@@ -1435,7 +1438,8 @@ export default function PatientModal({
                 if (displayItems.length === 0) return null;
 
                 return (
-                  <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mb-6 print:border-none">
+                  <>
+                    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mb-6 print:border-none">
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-200 print:bg-transparent print:border-slate-800">
@@ -1508,12 +1512,37 @@ export default function PatientModal({
                       </tfoot>
                     </table>
                   </div>
-                );
-              })()}
-            </div>
 
-            {/* Pagamentos */}
-            <div className={`border-t border-slate-200 pt-8 print:border-none print:pt-0 ${printMode === 'budget' ? 'print:hidden' : ''}`}>
+                  {!budgetToPrint && (
+                    <div className="mb-6 print:hidden">
+                      <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-slate-400" />
+                        Plano de Pagamento / Observações
+                      </label>
+                      <textarea
+                        value={budgetPaymentNotes}
+                        onChange={(e) => setBudgetPaymentNotes(e.target.value)}
+                        placeholder="Ex: 50% de entrada + 6x no cartão. Faltando incluir a coroa do implante..."
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-sm min-h-[100px]"
+                      />
+                    </div>
+                  )}
+
+                  {budgetToPrint?.paymentNotes && (
+                    <div className="mt-8 border-t border-slate-200 pt-6">
+                      <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-2">Plano de Pagamento / Observações</h4>
+                      <p className="text-slate-700 text-sm whitespace-pre-wrap bg-slate-50 p-4 rounded-lg border border-slate-100 italic">
+                        {budgetToPrint.paymentNotes}
+                      </p>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Pagamentos */}
+          <div className={`border-t border-slate-200 pt-8 print:border-none print:pt-0 ${printMode === 'budget' ? 'print:hidden' : ''}`}>
               <h3 className="text-lg font-semibold text-slate-800 mb-6 print:hidden">Registrar Pagamento</h3>
               
               {printMode !== 'receipt' && (
@@ -1816,6 +1845,11 @@ export default function PatientModal({
                               {budget.discount > 0 && (
                                 <div className="mt-2 text-red-500 font-medium">
                                   Desconto aplicado: {formatCurrency(budget.discount)}
+                                </div>
+                              )}
+                              {budget.paymentNotes && (
+                                <div className="mt-3 pt-3 border-t border-slate-100 text-slate-500 italic text-xs">
+                                  <span className="font-bold not-italic text-slate-700">Plano/Obs:</span> {budget.paymentNotes}
                                 </div>
                               )}
                             </div>
