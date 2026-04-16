@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Calculator, DollarSign, TrendingUp, TrendingDown, FileText, AlertCircle, Printer, Download, CheckCircle, Clock, Plus, Trash2, BookOpen, BarChart3, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { Patient, GlobalFinancialRecord, ExpenseRecord } from '../types';
 import { calculateMonthlyIR } from '../lib/taxCalculator';
 import { getSettings, ClinicSettings } from '../lib/settings';
@@ -36,22 +38,45 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
   
   useEffect(() => {
     getSettings().then(setSettings);
-    loadGlobalRecords();
+    
+    // Real-time subscription for global records
+    const q = query(collection(db, 'financeiro_geral'), orderBy('date', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const records: GlobalFinancialRecord[] = [];
+      snapshot.forEach((doc) => {
+        records.push({ ...doc.data() as GlobalFinancialRecord, id: doc.id });
+      });
+      setGlobalRecords(records);
+    }, (error) => {
+      console.error("Erro ao ouvir registros globais:", error);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    loadExpenses();
+    // Real-time subscription for expenses
+    const startDate = `${selectedYear}-${selectedMonth}-01`;
+    const endDate = `${selectedYear}-${selectedMonth}-31`;
+    const q = query(
+      collection(db, 'livro_caixa'),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate),
+      orderBy('date', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data: ExpenseRecord[] = [];
+      snapshot.forEach((doc) => {
+        data.push({ ...doc.data() as ExpenseRecord, id: doc.id });
+      });
+      setExpenses(data);
+    }, (error) => {
+      console.error("Erro ao ouvir despesas:", error);
+    });
+
+    return () => unsubscribe();
   }, [selectedYear, selectedMonth]);
-
-  const loadGlobalRecords = async () => {
-    const records = await getGlobalFinancialRecords();
-    setGlobalRecords(records);
-  };
-
-  const loadExpenses = async () => {
-    const data = await getExpenses(selectedYear, selectedMonth);
-    setExpenses(data);
-  };
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +94,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
         amount: 0
       });
       setIsAddingExpense(false);
-      loadExpenses();
+      // No need to manually call loadExpenses due to onSnapshot
     } catch (error) {
       alert('Erro ao salvar despesa.');
     }
@@ -79,7 +104,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
     if (window.confirm('Tem certeza que deseja excluir esta despesa?')) {
       try {
         await deleteExpense(id);
-        loadExpenses();
+        // No need to manually call loadExpenses due to onSnapshot
       } catch (error) {
         alert('Erro ao excluir despesa.');
       }
@@ -93,7 +118,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
   const handleUpdateStatus = async (id: string, status: 'Pendente' | 'Pago') => {
     try {
       await updateGlobalFinancialRecordStatus(id, status);
-      await loadGlobalRecords();
+      // loadGlobalRecords and onRefresh will be handled by snapshots and props
       onRefresh?.();
     } catch (error) {
       alert('Erro ao atualizar status.');
@@ -103,7 +128,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
   const handleToggleReceipt = async (id: string, currentStatus: boolean) => {
     try {
       await updateGlobalFinancialRecordReceipt(id, !currentStatus);
-      await loadGlobalRecords();
+      // loadGlobalRecords and onRefresh will be handled by snapshots and props
       onRefresh?.();
     } catch (error) {
       alert('Erro ao atualizar recibo.');
@@ -372,7 +397,6 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
         }
       }
       
-      await loadGlobalRecords();
       onRefresh?.();
       alert('Todos os pagamentos deste paciente no ano selecionado foram marcados como declarados.');
     } catch (error) {
