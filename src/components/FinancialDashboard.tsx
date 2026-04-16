@@ -56,14 +56,26 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
 
   useEffect(() => {
     // Real-time subscription for expenses
-    const startDate = `${selectedYear}-${selectedMonth}-01`;
-    const endDate = `${selectedYear}-${selectedMonth}-31`;
-    const q = query(
-      collection(db, 'livro_caixa'),
-      where('date', '>=', startDate),
-      where('date', '<=', endDate),
-      orderBy('date', 'desc')
-    );
+    let q;
+    if (selectedMonth === 'all') {
+      const startDate = `${selectedYear}-01-01`;
+      const endDate = `${selectedYear}-12-31`;
+      q = query(
+        collection(db, 'livro_caixa'),
+        where('date', '>=', startDate),
+        where('date', '<=', endDate),
+        orderBy('date', 'desc')
+      );
+    } else {
+      const startDate = `${selectedYear}-${selectedMonth}-01`;
+      const endDate = `${selectedYear}-${selectedMonth}-31`;
+      q = query(
+        collection(db, 'livro_caixa'),
+        where('date', '>=', startDate),
+        where('date', '<=', endDate),
+        orderBy('date', 'desc')
+      );
+    }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data: ExpenseRecord[] = [];
@@ -137,14 +149,14 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
 
   // Calculate totals for cashflow
   const { pendingTotal, receivedTotal, unifiedPendingRecords, unifiedReceivedRecords, monthlyIncome, monthlyDeclaredIncome } = useMemo(() => {
-    const currentMonthPrefix = `${selectedYear}-${selectedMonth}`;
+    const prefix = selectedMonth === 'all' ? `${selectedYear}-` : `${selectedYear}-${selectedMonth}-`;
     
     // Usar um Map para evitar duplicados entre globalRecords e patient records
     const allRecordsMap = new Map<string, any>();
     
     // 1. Adicionar registros globais (têm prioridade de status)
     globalRecords.forEach(record => {
-      if (record.date.startsWith(currentMonthPrefix)) {
+      if (record.date.startsWith(prefix)) {
         allRecordsMap.set(record.id, record);
       }
     });
@@ -153,7 +165,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
     patients.forEach(patient => {
       // New financeiro records
       patient.financeiro?.forEach((record: any) => {
-        if (record.recordType === 'payment' && record.date.startsWith(currentMonthPrefix)) {
+        if (record.recordType === 'payment' && record.date.startsWith(prefix)) {
           if (!allRecordsMap.has(record.id)) {
             const unifiedRecord = {
               id: record.id,
@@ -164,7 +176,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
               netAmount: record.netAmount || record.amount,
               cardFee: record.cardFee || 0,
               method: record.method,
-              procedure: record.notes || 'Pagamento registrado no prontuário',
+              procedure: (record as any).procedure || record.notes || 'Pagamento registrado no prontuário',
               status: record.status || (record.receiptIssued ? 'Pago' : 'Pendente'),
               receiptIssued: record.receiptIssued || false
             };
@@ -180,7 +192,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
 
       // Old payments records
       patient.payments?.forEach((record: any) => {
-        if (record.date.startsWith(currentMonthPrefix)) {
+        if (record.date.startsWith(prefix)) {
           if (!allRecordsMap.has(record.id)) {
             const unifiedRecord = {
               id: record.id,
@@ -290,6 +302,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
   const taxCalc = calculateMonthlyIR(monthlyDeclaredIncome, deductibleExpenses);
 
   const months = [
+    { value: 'all', label: 'Todo o Ano' },
     { value: '01', label: 'Janeiro' },
     { value: '02', label: 'Fevereiro' },
     { value: '03', label: 'Março' },
@@ -507,7 +520,9 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                   <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
                     <TrendingUp className="h-5 w-5" />
                   </div>
-                  <h3 className="font-semibold text-slate-700">Recebido no Mês</h3>
+                  <h3 className="font-semibold text-slate-700">
+                    {selectedMonth === 'all' ? 'Recebido no Ano' : 'Recebido no Mês'}
+                  </h3>
                 </div>
                 <p className="text-3xl font-bold text-emerald-700">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receivedTotal)}
@@ -543,7 +558,9 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                   <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
                     <Clock className="h-5 w-5" />
                   </div>
-                  <h3 className="font-semibold text-slate-700">A Receber (Pendente)</h3>
+                  <h3 className="font-semibold text-slate-700">
+                    {selectedMonth === 'all' ? 'A Receber (Ano)' : 'A Receber (Mês)'}
+                  </h3>
                 </div>
                 <p className="text-3xl font-bold text-amber-700">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pendingTotal)}
@@ -559,7 +576,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                 <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
                     <Clock className="h-4 w-4 text-amber-500" />
-                    Contas a Receber
+                    {selectedMonth === 'all' ? 'Contas a Receber (Ano)' : 'Contas a Receber'}
                   </h3>
                   <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-full">
                     {unifiedPendingRecords.length}
@@ -587,7 +604,9 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                       </div>
                     ))
                   ) : (
-                    <div className="p-8 text-center text-slate-500 italic text-sm">Nenhum pagamento pendente este mês.</div>
+                    <div className="p-8 text-center text-slate-500 italic text-sm">
+                      {selectedMonth === 'all' ? 'Nenhum pagamento pendente este ano.' : 'Nenhum pagamento pendente este mês.'}
+                    </div>
                   )}
                 </div>
               </motion.div>
@@ -597,7 +616,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                 <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-emerald-500" />
-                    Contas Recebidas
+                    {selectedMonth === 'all' ? 'Contas Recebidas (Ano)' : 'Contas Recebidas'}
                   </h3>
                   <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded-full">
                     {unifiedReceivedRecords.length}
@@ -636,7 +655,9 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                       </div>
                     ))
                   ) : (
-                    <div className="p-8 text-center text-slate-500 italic text-sm">Nenhum pagamento recebido este mês.</div>
+                    <div className="p-8 text-center text-slate-500 italic text-sm">
+                      {selectedMonth === 'all' ? 'Nenhum pagamento recebido este ano.' : 'Nenhum pagamento recebido este mês.'}
+                    </div>
                   )}
                 </div>
               </motion.div>
@@ -791,7 +812,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
               <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <BookOpen className="h-4 w-4 text-rose-500" />
-                  Registros do Mês
+                  {selectedMonth === 'all' ? 'Registros do Ano' : 'Registros do Mês'}
                 </h3>
                 <div className="text-sm font-medium text-slate-600">
                   Total de Despesas: <span className="text-rose-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(deductibleExpenses)}</span>
@@ -945,7 +966,9 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                   <div className="p-2 bg-teal-100 text-teal-600 rounded-lg">
                     <DollarSign className="h-5 w-5" />
                   </div>
-                  <h3 className="font-semibold text-slate-700">Receita Mensal</h3>
+                  <h3 className="font-semibold text-slate-700">
+                    {selectedMonth === 'all' ? 'Receita Anual' : 'Receita Mensal'}
+                  </h3>
                 </div>
                 <p className="text-2xl font-bold text-slate-900">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(monthlyIncome)}
@@ -954,7 +977,9 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                   <p className="text-sm font-medium text-teal-700">
                     Declarado: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(monthlyDeclaredIncome)}
                   </p>
-                  <p className="text-xs text-slate-500">Base para o Carnê-Leão</p>
+                  <p className="text-xs text-slate-500">
+                    {selectedMonth === 'all' ? 'Acumulado para ajuste anual' : 'Base para o Carnê-Leão'}
+                  </p>
                 </div>
               </motion.div>
 
@@ -963,7 +988,9 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                   <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
                     <Calculator className="h-5 w-5" />
                   </div>
-                  <h3 className="font-semibold text-slate-700">Estimativa IR (Carnê-Leão)</h3>
+                  <h3 className="font-semibold text-slate-700">
+                    {selectedMonth === 'all' ? 'Imposto Acumulado (Simulado)' : 'Estimativa IR (Carnê-Leão)'}
+                  </h3>
                 </div>
                 <p className="text-3xl font-bold text-slate-900">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(taxCalc.taxAmount)}
@@ -996,10 +1023,12 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
               <div className="p-6 border-b border-slate-200">
                 <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
                   <FileText className="h-5 w-5 text-slate-500" />
-                  Simulador do Carnê-Leão
+                  {selectedMonth === 'all' ? 'Simulador do Ano' : 'Simulador do Carnê-Leão'}
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">
-                  Resumo automático baseado no seu Livro Caixa (Aba Despesas).
+                  {selectedMonth === 'all' 
+                    ? 'Resumo automático baseado no seu Livro Caixa de todo o ano.' 
+                    : 'Resumo automático baseado no seu Livro Caixa (Aba Despesas).'}
                 </p>
               </div>
               
@@ -1008,7 +1037,9 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
                   <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                     <h4 className="text-sm font-medium text-slate-700 mb-2">Despesas Dedutíveis (Livro Caixa)</h4>
                     <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 mb-4">
-                      <span className="text-sm text-slate-600">Total do Mês:</span>
+                      <span className="text-sm text-slate-600">
+                        {selectedMonth === 'all' ? 'Total do Ano:' : 'Total do Mês:'}
+                      </span>
                       <span className="text-lg font-bold text-rose-600">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(deductibleExpenses)}
                       </span>
