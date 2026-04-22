@@ -93,8 +93,9 @@ export default function PatientModal({
     installments: 1,
     cardFee: 0,
     linkedBudgetId: '',
-    payerName: patient.payerName || '',
-    payerCPF: patient.payerCPF || ''
+    payerName: patient.fullName || '',
+    payerCPF: patient.cpf || '',
+    payerType: 'patient' as 'patient' | 'registered' | 'manual'
   });
 
   const [newPhotoSize, setNewPhotoSize] = useState<number | null>(null);
@@ -539,8 +540,9 @@ export default function PatientModal({
         installments: 1, 
         cardFee: 0, 
         linkedBudgetId: '',
-        payerName: '',
-        payerCPF: ''
+        payerName: patient.fullName || '',
+        payerCPF: patient.cpf || '',
+        payerType: 'patient'
       });
       alert('Pagamento registrado com sucesso no Firebase!');
     } catch (error) {
@@ -1958,13 +1960,54 @@ export default function PatientModal({
 
                     {paymentForm.receiptIssued && (
                       <>
+                        <div className="md:col-span-12 mb-2">
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Emitir Recibo em nome de:</label>
+                          <div className="flex flex-wrap gap-3">
+                            <button
+                              onClick={() => setPaymentForm({
+                                ...paymentForm,
+                                payerType: 'patient',
+                                payerName: patient.fullName,
+                                payerCPF: patient.cpf
+                              })}
+                              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${paymentForm.payerType === 'patient' ? 'bg-teal-600 text-white border-teal-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300'}`}
+                            >
+                              Paciente ({patient.fullName.split(' ')[0]})
+                            </button>
+                            {patient.payerName && (
+                              <button
+                                onClick={() => setPaymentForm({
+                                  ...paymentForm,
+                                  payerType: 'registered',
+                                  payerName: patient.payerName || '',
+                                  payerCPF: patient.payerCPF || ''
+                                })}
+                                className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${paymentForm.payerType === 'registered' ? 'bg-teal-600 text-white border-teal-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300'}`}
+                              >
+                                Pagador Cadastrado ({patient.payerName.split(' ')[0]})
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setPaymentForm({
+                                ...paymentForm,
+                                payerType: 'manual',
+                                payerName: '',
+                                payerCPF: ''
+                              })}
+                              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${paymentForm.payerType === 'manual' ? 'bg-teal-600 text-white border-teal-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300'}`}
+                            >
+                              Outro (Manual)
+                            </button>
+                          </div>
+                        </div>
                         <div className="md:col-span-4">
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Pagador (Se diferente do paciente)</label>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Pagador</label>
                           <input
                             type="text"
                             value={paymentForm.payerName}
                             onChange={(e) => setPaymentForm({...paymentForm, payerName: e.target.value})}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                            readOnly={paymentForm.payerType !== 'manual'}
+                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none ${paymentForm.payerType !== 'manual' ? 'bg-slate-50 text-slate-500' : 'bg-white'}`}
                             placeholder="Ex: Nome da Mãe/Pai"
                           />
                         </div>
@@ -1973,8 +2016,10 @@ export default function PatientModal({
                           <input
                             type="text"
                             value={paymentForm.payerCPF}
-                            onChange={(e) => setPaymentForm({...paymentForm, payerCPF: e.target.value})}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                            onChange={(e) => setPaymentForm({...paymentForm, payerCPF: formatCPF(e.target.value)})}
+                            readOnly={paymentForm.payerType !== 'manual'}
+                            maxLength={14}
+                            className={`w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none ${paymentForm.payerType !== 'manual' ? 'bg-slate-50 text-slate-500' : 'bg-white'}`}
                             placeholder="000.000.000-00"
                           />
                         </div>
