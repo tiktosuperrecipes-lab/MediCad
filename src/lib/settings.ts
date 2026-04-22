@@ -26,6 +26,7 @@ export interface ClinicSettings {
   agendaEndTime?: string;
   procedures?: Procedure[];
   cardFees?: CardFee[];
+  financialPassword?: string;
 }
 
 const DEFAULT_SETTINGS: ClinicSettings = {
@@ -46,7 +47,8 @@ const DEFAULT_SETTINGS: ClinicSettings = {
     { id: '5', installments: 5, percentage: 6.5 },
     { id: '6', installments: 6, percentage: 7.5 },
     { id: '12', installments: 12, percentage: 12.0 },
-  ]
+  ],
+  financialPassword: 'Samuel20206@'
 };
 
 const SETTINGS_DOC_ID = 'clinica_principal';

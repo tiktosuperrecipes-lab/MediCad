@@ -8,6 +8,7 @@ import FinancialDashboard from './components/FinancialDashboard';
 import Agenda from './components/Agenda';
 import ReturnsList from './components/ReturnsList';
 import Login from './components/Login';
+import PasswordLock from './components/PasswordLock';
 import { Patient } from './types';
 import { getPatients } from './lib/storage';
 import { getSettings, ClinicSettings } from './lib/settings';
@@ -18,6 +19,7 @@ export default function App() {
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [clinicSettings, setClinicSettings] = useState<ClinicSettings | null>(null);
+  const [isFinancialUnlocked, setIsFinancialUnlocked] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -183,16 +185,41 @@ export default function App() {
           )}
           {activeTab === 'financial' && (
             <motion.div key="financial" variants={pageVariants} initial="initial" animate="animate" exit="exit">
-              <FinancialDashboard patients={patients} onRefresh={refreshPatients} />
+              {!isFinancialUnlocked ? (
+                <PasswordLock 
+                  onUnlock={() => setIsFinancialUnlocked(true)} 
+                  correctPassword={clinicSettings?.financialPassword || 'Samuel20206@'}
+                  title="Financeiro Restrito"
+                  description="Digite a senha para acessar o controle de faturamento e lucro."
+                />
+              ) : (
+                <FinancialDashboard 
+                  patients={patients} 
+                  onRefresh={refreshPatients} 
+                  isUnlocked={isFinancialUnlocked}
+                  setIsUnlocked={setIsFinancialUnlocked}
+                />
+              )}
             </motion.div>
           )}
           {activeTab === 'settings' && (
             <motion.div key="settings" variants={pageVariants} initial="initial" animate="animate" exit="exit">
-              <div className="mb-8 print:hidden">
-                <h2 className="text-2xl font-bold text-slate-800">Configurações</h2>
-                <p className="text-slate-500">Personalize os dados da clínica para os cabeçalhos de impressão.</p>
-              </div>
-              <Settings onSave={loadSettings} />
+              {!isFinancialUnlocked ? (
+                <PasswordLock 
+                  onUnlock={() => setIsFinancialUnlocked(true)} 
+                  correctPassword={clinicSettings?.financialPassword || 'Samuel20206@'}
+                  title="Configurações Restritas"
+                  description="Digite a senha para acessar as configurações do sistema."
+                />
+              ) : (
+                <>
+                  <div className="mb-8 print:hidden">
+                    <h2 className="text-2xl font-bold text-slate-800">Configurações</h2>
+                    <p className="text-slate-500">Personalize os dados da clínica para os cabeçalhos de impressão.</p>
+                  </div>
+                  <Settings onSave={loadSettings} />
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

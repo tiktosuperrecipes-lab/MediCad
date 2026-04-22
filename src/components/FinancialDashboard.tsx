@@ -13,9 +13,11 @@ import BusinessCalculator from './BusinessCalculator';
 interface FinancialDashboardProps {
   patients: Patient[];
   onRefresh?: () => void;
+  isUnlocked: boolean;
+  setIsUnlocked: (unlocked: boolean) => void;
 }
 
-export default function FinancialDashboard({ patients, onRefresh }: FinancialDashboardProps) {
+export default function FinancialDashboard({ patients, onRefresh, isUnlocked, setIsUnlocked }: FinancialDashboardProps) {
   const todayStr = getLocalDateString();
   const [tYear, tMonth] = todayStr.split('-');
   const [selectedYear, setSelectedYear] = useState(tYear);
@@ -29,6 +31,7 @@ export default function FinancialDashboard({ patients, onRefresh }: FinancialDas
   const [globalRecords, setGlobalRecords] = useState<GlobalFinancialRecord[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
+  
   const [expenseForm, setExpenseForm] = useState<Omit<ExpenseRecord, 'id' | 'createdAt'>>({
     date: todayStr,
     description: '',

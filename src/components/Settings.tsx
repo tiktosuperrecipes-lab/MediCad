@@ -27,8 +27,6 @@ export default function Settings({ onSave }: SettingsProps) {
   const [newProcedure, setNewProcedure] = useState({ name: '', description: '', basePrice: 0 });
   const [newCardFee, setNewCardFee] = useState({ installments: 1, percentage: 0 });
 
-  const RESET_PASSWORD = 'Samuel20206@';
-
   useEffect(() => {
     const loadSettings = async () => {
       const data = await getSettings();
@@ -77,7 +75,8 @@ export default function Settings({ onSave }: SettingsProps) {
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === RESET_PASSWORD) {
+    const correctPassword = settings.financialPassword || 'Samuel20206@';
+    if (password === correctPassword) {
       setIsAuth(true);
     } else {
       alert('Senha incorreta!');
@@ -391,6 +390,26 @@ export default function Settings({ onSave }: SettingsProps) {
                     <p className="text-xs text-slate-400">Nenhuma taxa configurada.</p>
                   </div>
                 )}
+              </div>
+            </div>
+
+            <div className="border-t border-slate-200 pt-6 mt-2">
+              <div className="flex items-center gap-2 mb-4">
+                <Lock className="h-5 w-5 text-slate-500" />
+                <h3 className="text-sm font-semibold text-slate-800">Segurança do Sistema</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Senha do Financeiro / Configurações</label>
+                  <input
+                    type="text"
+                    value={settings.financialPassword || ''}
+                    onChange={(e) => setSettings({...settings, financialPassword: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    placeholder="Ex: SenhaSegura123"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Esta senha protege as áreas de Financeiro e Configurações.</p>
+                </div>
               </div>
             </div>
 
