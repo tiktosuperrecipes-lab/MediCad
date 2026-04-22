@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, FileX, AlertCircle, MessageCircle, Check, AlertTriangle } from 'lucide-react';
+import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, Edit3, FileX, AlertCircle, MessageCircle, Check, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto, OdontogramData } from '../types';
 import { savePatient, addClinicalEvolution, addFinancialRecord, updateFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
+import { formatCPF } from '../lib/formatters';
 import { compressImage } from '../lib/imageUtils';
 import Odontogram from './Odontogram';
 
@@ -58,6 +59,14 @@ export default function PatientModal({
     cid: ''
   });
 
+  // Payer State
+  const [isEditingPayer, setIsEditingPayer] = useState(false);
+  const [payerForm, setPayerForm] = useState({
+    payerName: patient.payerName || '',
+    payerCPF: patient.payerCPF || '',
+    payerObservation: patient.payerObservation || ''
+  });
+
   // Financial State
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
   const [currentBudgetItem, setCurrentBudgetItem] = useState({ description: '', quantity: 1, unitPrice: 0 });
@@ -84,8 +93,8 @@ export default function PatientModal({
     installments: 1,
     cardFee: 0,
     linkedBudgetId: '',
-    payerName: '',
-    payerCPF: ''
+    payerName: patient.payerName || '',
+    payerCPF: patient.payerCPF || ''
   });
 
   const [newPhotoSize, setNewPhotoSize] = useState<number | null>(null);
@@ -139,6 +148,17 @@ export default function PatientModal({
         setTimeout(callback, 100);
       }
     }, 100);
+  };
+
+  const handleSavePayerInfo = () => {
+    const updatedPatient = {
+      ...patient,
+      ...payerForm
+    };
+    savePatient(updatedPatient);
+    onUpdate(updatedPatient);
+    setIsEditingPayer(false);
+    alert('Dados do pagador atualizados com sucesso!');
   };
 
   const handleSaveAnamnesis = () => {
@@ -866,6 +886,91 @@ export default function PatientModal({
                   <p className="font-medium text-slate-900">{patient.gender || '-'}</p>
                 </div>
               </div>
+            </section>
+
+            {/* Dados do Pagador */}
+            <section className={printMode !== 'details' ? 'print:hidden' : ''}>
+              <div className="flex items-center justify-between mb-4 border-b border-slate-100 print:border-slate-300 pb-2">
+                <div className="flex items-center gap-2 text-teal-700 print:text-slate-800">
+                  <DollarSign className="h-5 w-5" />
+                  <h3 className="text-lg font-semibold">Dados do Pagador</h3>
+                </div>
+                {!isEditingPayer ? (
+                  <button 
+                    onClick={() => setIsEditingPayer(true)}
+                    className="print:hidden flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-700 hover:bg-slate-100 font-medium rounded-lg transition-colors text-sm"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    Editar Pagador
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setIsEditingPayer(false)}
+                      className="print:hidden px-3 py-1.5 text-slate-600 hover:bg-slate-100 font-medium rounded-lg transition-colors text-sm"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      onClick={handleSavePayerInfo}
+                      className="print:hidden flex items-center gap-2 px-3 py-1.5 bg-teal-600 text-white hover:bg-teal-700 font-medium rounded-lg transition-colors text-sm"
+                    >
+                      <Save className="h-4 w-4" />
+                      Salvar
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isEditingPayer ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Pagador</label>
+                    <input
+                      type="text"
+                      value={payerForm.payerName}
+                      onChange={(e) => setPayerForm({...payerForm, payerName: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                      placeholder="Nome do responsável pelo pagamento"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">CPF do Pagador</label>
+                    <input
+                      type="text"
+                      value={payerForm.payerCPF}
+                      onChange={(e) => setPayerForm({...payerForm, payerCPF: formatCPF(e.target.value)})}
+                      maxLength={14}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                      placeholder="000.000.000-00"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Observação do Pagador</label>
+                    <textarea
+                      value={payerForm.payerObservation}
+                      onChange={(e) => setPayerForm({...payerForm, payerObservation: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none h-24 resize-none"
+                      placeholder="Notas financeiras importantes..."
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                  <div className="sm:col-span-2">
+                    <p className="text-sm text-slate-500 mb-1">Nome do Pagador</p>
+                    <p className="font-medium text-slate-900">{patient.payerName || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500 mb-1">CPF do Pagador</p>
+                    <p className="font-medium text-slate-900">{patient.payerCPF || '-'}</p>
+                  </div>
+                  <div className="sm:col-span-2 lg:col-span-4">
+                    <p className="text-sm text-slate-500 mb-1">Observação do Pagador</p>
+                    <p className="font-medium text-slate-900 whitespace-pre-wrap">{patient.payerObservation || '-'}</p>
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* Contato e Endereço */}

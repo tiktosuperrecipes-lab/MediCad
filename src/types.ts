@@ -139,6 +139,10 @@ export interface Patient {
   insuranceName: string;
   consultationReason: string;
   createdAt: string;
+  // Payer Details
+  payerName?: string;
+  payerCPF?: string;
+  payerObservation?: string;
   // CRM & Prontuário
   consultations?: Consultation[];
   historico_clinico?: string[];

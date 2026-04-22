@@ -27,6 +27,9 @@ const initialFormState: Omit<Patient, 'id' | 'createdAt'> = {
   serviceType: 'Particular',
   insuranceName: '',
   consultationReason: '',
+  payerName: '',
+  payerCPF: '',
+  payerObservation: '',
   historico_clinico: [],
   nextReturn: '',
 };
@@ -55,7 +58,7 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
     }
 
     let formattedValue = value;
-    if (name === 'cpf') formattedValue = formatCPF(value);
+    if (name === 'cpf' || name === 'payerCPF') formattedValue = formatCPF(value);
     if (name === 'whatsapp') formattedValue = formatPhone(value);
 
     setFormData(prev => ({ ...prev, [name]: formattedValue }));
@@ -382,11 +385,11 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
           </div>
         </motion.div>
 
-        {/* Administrativo */}
+        {/* Administrativo e Pagador */}
         <motion.div variants={itemVariants} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center gap-2">
             <FileText className="h-5 w-5 text-teal-600" />
-            <h2 className="text-lg font-semibold text-slate-800">Administrativo</h2>
+            <h2 className="text-lg font-semibold text-slate-800">Administrativo e Pagador</h2>
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -413,6 +416,47 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
                 placeholder={formData.serviceType === 'Convênio' ? "Ex: Unimed, Bradesco..." : "Apenas para convênios"}
               />
             </div>
+
+            <div className="col-span-1 md:col-span-2 border-t border-slate-100 pt-4 mt-2">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Dados do Pagador (Opcional)</h3>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Pagador</label>
+              <input
+                type="text"
+                name="payerName"
+                value={formData.payerName || ''}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+                placeholder="Ex: Nome da Mãe, Pai ou Responsável"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">CPF do Pagador</label>
+              <input
+                type="text"
+                name="payerCPF"
+                value={formData.payerCPF || ''}
+                onChange={handleChange}
+                maxLength={14}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+                placeholder="000.000.000-00"
+              />
+            </div>
+            <div className="col-span-1 md:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Observação do Pagador</label>
+              <textarea
+                name="payerObservation"
+                value={formData.payerObservation || ''}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all h-20 resize-none"
+                placeholder="Notas sobre pagamento, faturamento ou observações financeiras..."
+              />
+            </div>
+
+            <div className="col-span-1 md:col-span-2 border-t border-slate-100 pt-4 mt-2"></div>
+            
             <div className="col-span-1 md:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">Motivo da Consulta</label>
               <textarea
