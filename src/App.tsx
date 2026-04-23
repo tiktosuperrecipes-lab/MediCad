@@ -230,7 +230,10 @@ export default function App() {
           )}
           {activeTab === 'agenda' && (
             <motion.div key="agenda" variants={pageVariants} initial="initial" animate="animate" exit="exit">
-              <Agenda patients={patients} />
+              <Agenda 
+                patients={patients} 
+                onAddNewPatient={() => handleTabChange('form')}
+              />
             </motion.div>
           )}
           {activeTab === 'returns' && (

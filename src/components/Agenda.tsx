@@ -8,9 +8,10 @@ import { getSettings, ClinicSettings } from '../lib/settings';
 
 interface AgendaProps {
   patients: Patient[];
+  onAddNewPatient: () => void;
 }
 
-export default function Agenda({ patients }: AgendaProps) {
+export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -268,16 +269,29 @@ export default function Agenda({ patients }: AgendaProps) {
                   <User className="h-4 w-4" />
                   Paciente
                 </label>
-                <select
-                  value={formData.patientId}
-                  onChange={(e) => setFormData({...formData, patientId: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white"
-                >
-                  <option value="">-- Selecione um paciente --</option>
-                  {patients.map(p => (
-                    <option key={p.id} value={p.id}>{p.fullName}</option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={formData.patientId}
+                    onChange={(e) => setFormData({...formData, patientId: e.target.value})}
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white"
+                  >
+                    <option value="">-- Selecione um paciente --</option>
+                    {patients.map(p => (
+                      <option key={p.id} value={p.id}>{p.fullName}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleCloseModal();
+                      onAddNewPatient();
+                    }}
+                    className="p-2 bg-teal-50 text-teal-600 rounded-lg border border-teal-200 hover:bg-teal-100 transition-colors"
+                    title="Cadastrar novo paciente"
+                  >
+                    <Plus className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
 
               <div>
