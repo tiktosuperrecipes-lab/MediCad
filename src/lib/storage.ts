@@ -241,6 +241,47 @@ export async function updateFinancialRecord(patientId: string, updatedRecord: an
   }
 }
 
+export async function updatePaymentFee(patientId: string, paymentId: string, newFee: number): Promise<void> {
+  try {
+    const patientRef = doc(db, 'pacientes', patientId);
+    const { getDoc } = await import('firebase/firestore');
+    const docSnap = await getDoc(patientRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      const financeiro = data.financeiro || [];
+      
+      let amount = 0;
+      const newFinanceiro = financeiro.map((f: any) => {
+        if (f.id === paymentId) {
+          amount = f.amount;
+          return {
+            ...f,
+            cardFee: newFee,
+            netAmount: f.amount - newFee
+          };
+        }
+        return f;
+      });
+
+      await updateDoc(patientRef, { financeiro: newFinanceiro });
+
+      // Sincroniza com o global
+      const globalRef = doc(db, 'financeiro_geral', paymentId);
+      const globalSnap = await getDoc(globalRef);
+      if (globalSnap.exists()) {
+        await updateDoc(globalRef, {
+          cardFee: newFee,
+          netAmount: amount - newFee
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Erro ao atualizar taxa do cartão:", error);
+    throw error;
+  }
+}
+
 export async function addPatientPhoto(patientId: string, base64Image: string): Promise<void> {
   try {
     const patientRef = doc(db, 'pacientes', patientId);

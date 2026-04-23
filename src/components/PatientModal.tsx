@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, Edit3, FileX, AlertCircle, MessageCircle, Check, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto, OdontogramData } from '../types';
-import { savePatient, addClinicalEvolution, addFinancialRecord, updateFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution } from '../lib/storage';
+import { savePatient, addClinicalEvolution, addFinancialRecord, updateFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution, updatePaymentFee } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
 import { formatCPF } from '../lib/formatters';
@@ -101,6 +101,8 @@ export default function PatientModal({
   const [newPhotoSize, setNewPhotoSize] = useState<number | null>(null);
   const [editingEvolution, setEditingEvolution] = useState<{index: number, text: string} | null>(null);
   const [useSharpnessFilter, setUseSharpnessFilter] = useState<{ [key: string]: boolean }>({});
+  const [editingPaymentFeeId, setEditingPaymentFeeId] = useState<string | null>(null);
+  const [newFeeValue, setNewFeeValue] = useState<string>('0');
 
   // Auto-calculate card fees
   useEffect(() => {
@@ -2103,6 +2105,85 @@ export default function PatientModal({
                                   </>
                                 )}
                               </div>
+
+                              {(payment.method === 'credit' || payment.method === 'debit') && (
+                                <div className="mt-2 flex items-center gap-2 text-[10px] text-slate-500">
+                                  <span className="flex items-center gap-1 font-medium italic">
+                                    Taxa Cartão: 
+                                    {editingPaymentFeeId === payment.id ? (
+                                      <div className="flex items-center gap-1">
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          value={newFeeValue}
+                                          onChange={(e) => setNewFeeValue(e.target.value)}
+                                          autoFocus
+                                          onKeyDown={async (e) => {
+                                            if (e.key === 'Enter') {
+                                              const fee = parseFloat(newFeeValue) || 0;
+                                              try {
+                                                await updatePaymentFee(patient.id, payment.id, fee);
+                                                const updatedPatient = {
+                                                  ...patient,
+                                                  financeiro: patient.financeiro?.map((f: any) => 
+                                                    (f.id === payment.id) ? { ...f, cardFee: fee, netAmount: payment.amount - fee } : f
+                                                  )
+                                                };
+                                                onUpdate(updatedPatient);
+                                                setEditingPaymentFeeId(null);
+                                              } catch (error) {
+                                                alert("Erro ao atualizar taxa.");
+                                              }
+                                            } else if (e.key === 'Escape') {
+                                              setEditingPaymentFeeId(null);
+                                            }
+                                          }}
+                                          className="w-16 px-1 py-0.5 border border-teal-200 rounded outline-none focus:ring-1 focus:ring-teal-500 bg-white"
+                                        />
+                                        <button 
+                                          onClick={async () => {
+                                            const fee = parseFloat(newFeeValue) || 0;
+                                            try {
+                                              await updatePaymentFee(patient.id, payment.id, fee);
+                                              const updatedPatient = {
+                                                ...patient,
+                                                financeiro: patient.financeiro?.map((f: any) => 
+                                                  (f.id === payment.id) ? { ...f, cardFee: fee, netAmount: payment.amount - fee } : f
+                                                )
+                                              };
+                                              onUpdate(updatedPatient);
+                                              setEditingPaymentFeeId(null);
+                                            } catch (error) {
+                                              alert("Erro ao atualizar taxa.");
+                                            }
+                                          }}
+                                          className="text-teal-600 hover:text-teal-800"
+                                        >
+                                          <Check className="h-3 w-3" />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <span className="text-slate-700 font-bold">{formatCurrency((payment as any).cardFee || 0)}</span>
+                                        <button 
+                                          onClick={() => {
+                                            setEditingPaymentFeeId(payment.id);
+                                            setNewFeeValue(String((payment as any).cardFee || 0));
+                                          }}
+                                          className="ml-1 text-teal-600 hover:text-teal-800 focus:outline-none transition-colors"
+                                          title="Editar Taxa"
+                                        >
+                                          <Edit3 className="h-3 w-3" />
+                                        </button>
+                                      </>
+                                    )}
+                                  </span>
+                                  <span>•</span>
+                                  <span className="font-medium">
+                                    Líquido: <span className="text-slate-700 font-bold">{formatCurrency(payment.amount - ((payment as any).cardFee || 0))}</span>
+                                  </span>
+                                </div>
+                              )}
                             </div>
 
                             {/* Receipt Print View */}
