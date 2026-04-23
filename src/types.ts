@@ -85,6 +85,13 @@ export interface PatientPhoto {
   linkedConsultation?: string;
 }
 
+export interface PatientLink {
+  id: string;
+  url: string;
+  description: string;
+  date: string;
+}
+
 export interface GlobalFinancialRecord {
   id: string;
   patientId: string;
@@ -147,6 +154,7 @@ export interface Patient {
   consultations?: Consultation[];
   historico_clinico?: string[];
   fotos?: (string | PatientPhoto)[];
+  links?: PatientLink[];
   nextReturn?: string;
 
   // Anamnese Base

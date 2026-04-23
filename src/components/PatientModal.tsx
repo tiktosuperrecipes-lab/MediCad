@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, Edit3, FileX, AlertCircle, MessageCircle, Check, AlertTriangle } from 'lucide-react';
+import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, Edit3, FileX, AlertCircle, MessageCircle, Check, AlertTriangle, Link, ExternalLink, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto, OdontogramData } from '../types';
-import { savePatient, addClinicalEvolution, addFinancialRecord, updateFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution, updatePaymentFee } from '../lib/storage';
+import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto, OdontogramData, PatientLink } from '../types';
+import { savePatient, addClinicalEvolution, addFinancialRecord, updateFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution, updatePaymentFee, addPatientLink, removePatientLink } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';
 import { formatCPF } from '../lib/formatters';
@@ -104,6 +104,10 @@ export default function PatientModal({
   const [editingPaymentFeeId, setEditingPaymentFeeId] = useState<string | null>(null);
   const [newFeeValue, setNewFeeValue] = useState<string>('0');
   const [feeCalcType, setFeeCalcType] = useState<'value' | 'percent'>('value');
+
+  // Links State
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkForm, setLinkForm] = useState({ url: '', description: '' });
 
   // Auto-calculate card fees
   useEffect(() => {
@@ -646,6 +650,53 @@ export default function PatientModal({
     onUpdate(updatedPatient);
     setPendingPhoto(null);
     setNewPhotoSize(null);
+  };
+
+  const handleAddLink = async () => {
+    if (!linkForm.url) return;
+    
+    // Add protocol if missing
+    let url = linkForm.url;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+
+    const newLink: PatientLink = {
+      id: Math.random().toString(36).substr(2, 9),
+      url: url,
+      description: linkForm.description || url,
+      date: getLocalDateString()
+    };
+
+    try {
+      await addPatientLink(patient.id, newLink);
+      setLinkForm({ url: '', description: '' });
+      setShowLinkInput(false);
+      // Construct updated patient for immediate UI update
+      const updatedPatient = {
+        ...patient,
+        links: [...(patient.links || []), newLink]
+      };
+      onUpdate(updatedPatient);
+    } catch (error) {
+      alert('Erro ao salvar link.');
+    }
+  };
+
+  const handleDeleteLink = async (link: PatientLink) => {
+    if (window.confirm('Deseja remover este link?')) {
+      try {
+        await removePatientLink(patient.id, link);
+        // Construct updated patient for immediate UI update
+        const updatedPatient = {
+          ...patient,
+          links: (patient.links || []).filter(l => l.id !== link.id)
+        };
+        onUpdate(updatedPatient);
+      } catch (error) {
+        alert('Erro ao remover link.');
+      }
+    }
   };
 
   const handleDeletePhoto = async (photoToDelete: string | PatientPhoto) => {
@@ -1383,6 +1434,111 @@ export default function PatientModal({
                   <p className="text-slate-500">Nenhuma foto adicionada ao prontuário.</p>
                 </div>
               )}
+
+              {/* Links Section */}
+              <div className="mt-12 border-t border-slate-100 pt-8 print:hidden">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-teal-600" />
+                    Links e Recursos Externos
+                  </h3>
+                  <button 
+                    onClick={() => setShowLinkInput(!showLinkInput)}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Adicionar Link
+                  </button>
+                </div>
+
+                {showLinkInput && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 space-y-3"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">URL (Link)</label>
+                        <input
+                          type="text"
+                          value={linkForm.url}
+                          onChange={(e) => setLinkForm({...linkForm, url: e.target.value})}
+                          placeholder="https://exemplo.com"
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Descrição</label>
+                        <input
+                          type="text"
+                          value={linkForm.description}
+                          onChange={(e) => setLinkForm({...linkForm, description: e.target.value})}
+                          placeholder="Ex: Pasta no Google Drive, Exames..."
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => setShowLinkInput(false)}
+                        className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        onClick={handleAddLink}
+                        className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg"
+                      >
+                        Salvar Link
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {patient.links && patient.links.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {patient.links.map((link) => (
+                      <div 
+                        key={link.id}
+                        className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:border-teal-200 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
+                            <Link className="h-4 w-4" />
+                          </div>
+                          <div className="overflow-hidden">
+                            <p className="font-bold text-sm text-slate-800 truncate">{link.description}</p>
+                            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{formatDateShort(link.date)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <a 
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                            title="Abrir Link"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                          <button 
+                            onClick={() => handleDeleteLink(link)}
+                            className="p-2 text-slate-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Remover Link"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                    <p className="text-slate-400 text-sm">Nenhum link externo cadastrado.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
           )}

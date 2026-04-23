@@ -7,7 +7,7 @@ import { Patient, GlobalFinancialRecord, ExpenseRecord } from '../types';
 import { calculateMonthlyIR } from '../lib/taxCalculator';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateLong, formatDateShort } from '../lib/dateUtils';
-import { savePatient, getGlobalFinancialRecords, updateGlobalFinancialRecordStatus, updateGlobalFinancialRecordReceipt, getExpenses, saveExpense, deleteExpense } from '../lib/storage';
+import { savePatient, getGlobalFinancialRecords, updateGlobalFinancialRecordStatus, updateGlobalFinancialRecordReceipt, getExpenses, saveExpense, deleteExpense, deleteFinancialRecord } from '../lib/storage';
 import BusinessCalculator from './BusinessCalculator';
 
 interface FinancialDashboardProps {
@@ -147,6 +147,17 @@ export default function FinancialDashboard({ patients, onRefresh, isUnlocked, se
       onRefresh?.();
     } catch (error) {
       alert('Erro ao atualizar recibo.');
+    }
+  };
+
+  const handleDeleteRecord = async (record: any) => {
+    if (!window.confirm('Tem certeza que deseja excluir este registro financeiro? Ele também será removido do prontuário do paciente.')) return;
+    
+    try {
+      await deleteFinancialRecord(record.id, record.patientId);
+      onRefresh?.();
+    } catch (error) {
+      alert('Erro ao excluir registro.');
     }
   };
 
@@ -599,13 +610,22 @@ export default function FinancialDashboard({ patients, onRefresh, isUnlocked, se
                           <p className="font-bold text-teal-700">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(record.amount)}</p>
                         </div>
                         <p className="text-sm text-slate-600 mb-3 line-clamp-1">{record.procedure}</p>
-                        <button
-                          onClick={() => handleUpdateStatus(record.id, 'Pago')}
-                          className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200 transition-all"
-                        >
-                          <CheckCircle className="h-3 w-3" />
-                          Dar Baixa (Pago)
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleUpdateStatus(record.id, 'Pago')}
+                            className="flex-1 flex items-center justify-center gap-2 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200 transition-all"
+                          >
+                            <CheckCircle className="h-3 w-3" />
+                            Dar Baixa (Pago)
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRecord(record)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100"
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -648,12 +668,21 @@ export default function FinancialDashboard({ patients, onRefresh, isUnlocked, se
                                 - {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(record.cardFee)} (Líquido: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(record.netAmount)})
                               </p>
                             )}
-                            <button
-                              onClick={() => handleToggleReceipt(record.id, !!record.receiptIssued)}
-                              className={`text-[10px] font-bold mt-1 underline ${record.receiptIssued ? 'text-rose-600 hover:text-rose-700' : 'text-teal-600 hover:text-teal-700'}`}
-                            >
-                              {record.receiptIssued ? 'Remover Recibo' : 'Marcar Recibo'}
-                            </button>
+                            <div className="flex items-center justify-end gap-3 mt-1">
+                              <button
+                                onClick={() => handleToggleReceipt(record.id, !!record.receiptIssued)}
+                                className={`text-[10px] font-bold underline ${record.receiptIssued ? 'text-rose-600 hover:text-rose-700' : 'text-teal-600 hover:text-teal-700'}`}
+                              >
+                                {record.receiptIssued ? 'Remover Recibo' : 'Marcar Recibo'}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRecord(record)}
+                                className="text-slate-400 hover:text-rose-600 transition-colors p-1 rounded hover:bg-rose-50"
+                                title="Excluir"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                         <p className="text-sm text-slate-600 line-clamp-1">{record.procedure}</p>

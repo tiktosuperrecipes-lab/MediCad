@@ -1,6 +1,6 @@
 import { collection, addDoc, doc, updateDoc, deleteDoc, getDocs, arrayUnion, arrayRemove, query, where, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
-import { Patient, Appointment, GlobalFinancialRecord, ExpenseRecord } from '../types';
+import { Patient, Appointment, GlobalFinancialRecord, ExpenseRecord, PatientLink } from '../types';
 
 const STORAGE_KEY = '@medicad:patients';
 
@@ -306,6 +306,30 @@ export async function removePatientPhoto(patientId: string, base64Image: string)
   }
 }
 
+export async function addPatientLink(patientId: string, link: PatientLink): Promise<void> {
+  try {
+    const patientRef = doc(db, 'pacientes', patientId);
+    await updateDoc(patientRef, {
+      links: arrayUnion(link)
+    });
+  } catch (error) {
+    console.error("Erro ao salvar link do paciente:", error);
+    throw error;
+  }
+}
+
+export async function removePatientLink(patientId: string, link: PatientLink): Promise<void> {
+  try {
+    const patientRef = doc(db, 'pacientes', patientId);
+    await updateDoc(patientRef, {
+      links: arrayRemove(link)
+    });
+  } catch (error) {
+    console.error("Erro ao remover link do paciente:", error);
+    throw error;
+  }
+}
+
 // Global Financial Records
 export async function addGlobalFinancialRecord(record: Omit<GlobalFinancialRecord, 'id'> & { id?: string }): Promise<void> {
   try {
@@ -366,6 +390,35 @@ export async function deleteGlobalFinancialRecord(id: string): Promise<void> {
     await deleteDoc(doc(db, 'financeiro_geral', id));
   } catch (error) {
     console.error("Erro ao excluir registro financeiro global:", error);
+    throw error;
+  }
+}
+
+export async function deleteFinancialRecord(id: string, patientId?: string): Promise<void> {
+  try {
+    const { getDoc } = await import('firebase/firestore');
+    
+    // 1. Delete from global records
+    await deleteDoc(doc(db, 'financeiro_geral', id));
+    
+    // 2. If patientId is provided, also delete from patient's financeiro array
+    if (patientId) {
+      const patientRef = doc(db, 'pacientes', patientId);
+      const patientSnap = await getDoc(patientRef);
+      
+      if (patientSnap.exists()) {
+        const patientData = patientSnap.data() as Patient;
+        const updatedFinanceiro = patientData.financeiro?.filter((item: any) => item.id !== id);
+        const updatedPayments = patientData.payments?.filter((item: any) => item.id !== id);
+        
+        await updateDoc(patientRef, { 
+          financeiro: updatedFinanceiro,
+          payments: updatedPayments
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Erro ao excluir registro financeiro:", error);
     throw error;
   }
 }
@@ -616,6 +669,7 @@ export async function clearPatientClinicalData(area: 'all' | 'financial' | 'clin
         updates.examRequests = [];
         updates.certificates = [];
         updates.fotos = [];
+        updates.links = [];
       }
       
       return updateDoc(patientRef, updates);
