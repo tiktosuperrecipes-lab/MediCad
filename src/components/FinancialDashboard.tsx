@@ -173,8 +173,9 @@ export default function FinancialDashboard({ patients, onRefresh, isUnlocked, se
     try {
       await deleteFinancialRecord(record.id, record.patientId);
       onRefresh?.();
-    } catch (error) {
-      alert('Erro ao excluir registro.');
+    } catch (error: any) {
+      console.error("Erro ao excluir:", error);
+      alert('Erro ao excluir registro: ' + (error?.message || 'Erro desconhecido'));
     }
   };
 

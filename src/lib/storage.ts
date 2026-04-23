@@ -396,20 +396,25 @@ export async function deleteGlobalFinancialRecord(id: string): Promise<void> {
 
 export async function deleteFinancialRecord(id: string, patientId?: string): Promise<void> {
   try {
-    const { getDoc } = await import('firebase/firestore');
-    
     // 1. Delete from global records
-    await deleteDoc(doc(db, 'financeiro_geral', id));
+    const globalRef = doc(db, 'financeiro_geral', id);
+    try {
+      await deleteDoc(globalRef);
+    } catch (e) {
+      console.warn("Registro não encontrado no financeiro geral ou erro ao apagar:", e);
+    }
     
     // 2. If patientId is provided, also delete from patient's financeiro array
     if (patientId) {
       const patientRef = doc(db, 'pacientes', patientId);
+      const { getDoc } = await import('firebase/firestore');
       const patientSnap = await getDoc(patientRef);
       
       if (patientSnap.exists()) {
         const patientData = patientSnap.data() as Patient;
-        const updatedFinanceiro = patientData.financeiro?.filter((item: any) => item.id !== id);
-        const updatedPayments = patientData.payments?.filter((item: any) => item.id !== id);
+        // Search in both financeiro and legacy payments arrays
+        const updatedFinanceiro = patientData.financeiro?.filter((item: any) => item.id !== id) || [];
+        const updatedPayments = patientData.payments?.filter((item: any) => item.id !== id) || [];
         
         await updateDoc(patientRef, { 
           financeiro: updatedFinanceiro,
@@ -418,7 +423,7 @@ export async function deleteFinancialRecord(id: string, patientId?: string): Pro
       }
     }
   } catch (error) {
-    console.error("Erro ao excluir registro financeiro:", error);
+    console.error("Erro fatal ao excluir registro financeiro:", error);
     throw error;
   }
 }
