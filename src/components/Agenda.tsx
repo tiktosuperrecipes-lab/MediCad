@@ -18,6 +18,7 @@ export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTime, setSelectedTime] = useState('');
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [dragOverTime, setDragOverTime] = useState<string | null>(null);
   const [settings, setSettings] = useState<ClinicSettings | null>(null);
 
   const [formData, setFormData] = useState({
@@ -139,6 +140,42 @@ export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, appointment: Appointment) => {
+    e.dataTransfer.setData('appointmentId', appointment.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, time: string) => {
+    e.preventDefault();
+    setDragOverTime(time);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetTime: string) => {
+    e.preventDefault();
+    setDragOverTime(null);
+    const appointmentId = e.dataTransfer.getData('appointmentId');
+    const appointment = appointments.find(a => a.id === appointmentId);
+
+    if (appointment && appointment.time !== targetTime) {
+      // Check if target slot is already occupied
+      const occupied = appointments.find(a => a.time === targetTime);
+      if (occupied) {
+        alert('Este horário já está ocupado.');
+        return;
+      }
+
+      try {
+        await saveAppointment({
+          ...appointment,
+          time: targetTime
+        });
+        loadAppointments();
+      } catch (error) {
+        alert('Erro ao mover agendamento.');
+      }
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Confirmado': return 'bg-green-100 text-green-700 border-green-200';
@@ -200,25 +237,34 @@ export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
               const patient = appointment ? patients.find(p => p.id === appointment.patientId) : null;
 
               return (
-                <motion.div variants={itemVariants} key={time} className="flex group hover:bg-slate-50 transition-colors">
+                <motion.div 
+                  variants={itemVariants} 
+                  key={time} 
+                  className={`flex group transition-all duration-200 ${dragOverTime === time ? 'bg-teal-50/50' : 'hover:bg-slate-50'}`}
+                  onDragOver={(e) => handleDragOver(e, time)}
+                  onDrop={(e) => handleDrop(e, time)}
+                  onDragLeave={() => setDragOverTime(null)}
+                >
                   <div className="w-24 py-4 px-6 flex items-center justify-center border-r border-slate-100 bg-slate-50/50">
                     <span className="text-sm font-medium text-slate-600">{time}</span>
                   </div>
                   
-                  <div className="flex-1 p-3">
+                  <div className="flex-1 p-2 sm:p-3">
                     {appointment ? (
                       <div 
+                        draggable="true"
+                        onDragStart={(e) => handleDragStart(e, appointment)}
                         onClick={() => handleOpenModal(time, appointment)}
-                        className={`p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md ${getStatusColor(appointment.status)}`}
+                        className={`p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${getStatusColor(appointment.status)}`}
                       >
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-bold">{patient?.fullName || 'Paciente não encontrado'}</h4>
+                            <h4 className="font-bold text-sm sm:text-base line-clamp-1">{patient?.fullName || 'Paciente não encontrado'}</h4>
                             {appointment.procedure && (
-                              <p className="text-sm opacity-90 mt-1">{appointment.procedure}</p>
+                              <p className="text-xs sm:text-sm opacity-90 mt-1 line-clamp-1">{appointment.procedure}</p>
                             )}
                           </div>
-                          <span className="text-xs font-semibold px-2 py-1 rounded-full bg-white/50">
+                          <span className="text-[10px] sm:text-xs font-semibold px-2 py-1 rounded-full bg-white/50 whitespace-nowrap">
                             {appointment.status}
                           </span>
                         </div>
@@ -226,11 +272,11 @@ export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
                     ) : (
                       <div 
                         onClick={() => handleOpenModal(time)}
-                        className="h-full min-h-[3rem] rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-slate-400 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 cursor-pointer transition-all opacity-0 group-hover:opacity-100"
+                        className={`h-full min-h-[3.5rem] rounded-lg border border-dashed flex items-center justify-center text-slate-400 hover:text-teal-600 hover:border-teal-300 hover:bg-teal-50 cursor-pointer transition-all ${dragOverTime === time ? 'border-teal-400 bg-teal-50 opacity-100' : 'border-slate-200 opacity-0 group-hover:opacity-100'}`}
                       >
                         <div className="flex items-center gap-2 text-sm font-medium">
                           <Plus className="h-4 w-4" />
-                          Agendar
+                          <span className="hidden xs:inline">Agendar</span>
                         </div>
                       </div>
                     )}
