@@ -715,7 +715,7 @@ export default function PatientModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm print:static print:p-0 print:bg-white print:block">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-6 bg-slate-900/50 backdrop-blur-sm print:static print:p-0 print:bg-white print:block">
       <motion.div 
         layout
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -727,124 +727,99 @@ export default function PatientModal({
           damping: 45,
           layout: { duration: 0.15, type: "spring", stiffness: 600, damping: 40 }
         }}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible flex flex-col"
+        className="bg-white rounded-none sm:rounded-2xl shadow-xl w-full h-full sm:h-auto max-w-5xl sm:max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible flex flex-col"
       >
         
-        {/* Header */}
-        <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-bold text-slate-800">Prontuário Eletrônico: {patient.fullName}</h2>
-            
-            {/* Monitor de Espaço */}
-            <div className="flex flex-col gap-1 max-w-[200px]">
-              <div className={`text-[10px] font-medium flex items-center gap-2 ${
-                patientSize > 950 ? 'text-red-600' : 
-                patientSize > 800 ? 'text-orange-600' : 
-                'text-slate-500'
-              }`}>
-                <span>Espaço utilizado: {patientSize} KB de 1024 KB</span>
-                {patientSize > 950 && (
-                  <span className="animate-pulse flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    Quase esgotado!
-                  </span>
-                )}
+        <div className="sticky top-0 z-30 bg-white border-b border-slate-200">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 print:hidden">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-800 line-clamp-1">Prontuário: {patient.fullName}</h2>
+              
+              {/* Monitor de Espaço */}
+              <div className="flex flex-col gap-0.5 max-w-[200px]">
+                <div className={`text-[9px] sm:text-[10px] font-medium flex items-center gap-2 ${
+                  patientSize > 950 ? 'text-red-600' : 
+                  patientSize > 800 ? 'text-orange-600' : 
+                  'text-slate-500'
+                }`}>
+                  <span className="whitespace-nowrap">Armazenamento: {patientSize} KB / 1024 KB</span>
+                </div>
+                <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-150 ${
+                      patientSize > 950 ? 'bg-red-600' : 
+                      patientSize > 800 ? 'bg-orange-500' : 
+                      'bg-teal-500'
+                    }`}
+                    style={{ width: `${Math.min((patientSize / 1024) * 100, 100)}%` }}
+                  />
+                </div>
               </div>
-              <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full transition-all duration-150 ${
-                    patientSize > 950 ? 'bg-red-600' : 
-                    patientSize > 800 ? 'bg-orange-500' : 
-                    'bg-teal-500'
-                  }`}
-                  style={{ width: `${Math.min((patientSize / 1024) * 100, 100)}%` }}
-                />
-              </div>
-              {patientSize > 950 && (
-                <p className="text-[9px] text-red-500 font-bold leading-tight">
-                  Evite adicionar novas fotos.
-                </p>
-              )}
+            </div>
+            <div className="flex items-center justify-between sm:justify-end gap-2">
+              <button
+                onClick={() => handlePrint('details')}
+                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors text-sm flex-1 sm:flex-none"
+              >
+                <Printer className="h-4 w-4" />
+                <span className="hidden xs:inline sm:inline">Imprimir</span>
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                aria-label="Fechar"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handlePrint('details')}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
-            >
-              <Printer className="h-4 w-4" />
-              <span className="hidden sm:inline">Imprimir Ficha</span>
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
 
-        {/* Print Header (Only visible when printing) */}
-        <div className="hidden print:block border-b-2 border-slate-800 pb-6 mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">{settings?.name || 'Clínica Médica'}</h1>
-              <p className="text-slate-500 mt-1">{settings?.address || 'Endereço não configurado'}</p>
-              <p className="text-slate-500">Telefone: {settings?.phone || 'Não configurado'}</p>
+          {/* Tabs - Now inside the sticky container */}
+          <div className="px-4 sm:px-8 border-t sm:border-t-0 border-slate-100 print:hidden overflow-x-auto hide-scrollbar">
+            <div className="flex gap-4 sm:gap-6 min-w-max">
+              <button 
+                onClick={() => setActiveTab('details')}
+                className={`py-3 sm:py-4 font-bold text-[11px] sm:text-xs uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${activeTab === 'details' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+              >
+                <User className="h-4 w-4" />
+                <span>Dados</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('history')}
+                className={`py-3 sm:py-4 font-bold text-[11px] sm:text-xs uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${activeTab === 'history' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+              >
+                <Activity className="h-4 w-4" />
+                <span>Evolução</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('prescriptions')}
+                className={`py-3 sm:py-4 font-bold text-[11px] sm:text-xs uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${activeTab === 'prescriptions' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+              >
+                <Pill className="h-4 w-4" />
+                <span>Receitas</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('certificates')}
+                className={`py-3 sm:py-4 font-bold text-[11px] sm:text-xs uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${activeTab === 'certificates' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+              >
+                <FileBadge className="h-4 w-4" />
+                <span>Atestados</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('financial')}
+                className={`py-3 sm:py-4 font-bold text-[11px] sm:text-xs uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${activeTab === 'financial' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+              >
+                <DollarSign className="h-4 w-4" />
+                <span>Financeiro</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('odontogram')}
+                className={`py-3 sm:py-4 font-bold text-[11px] sm:text-xs uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${activeTab === 'odontogram' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+              >
+                <Activity className="h-4 w-4" />
+                <span>Odonto</span>
+              </button>
             </div>
-            <div className="text-right text-sm text-slate-500">
-              <p>Data: {formatDateShort(getLocalDateString())}</p>
-              <p>Paciente: {patient.fullName}</p>
-              <p>CPF: {patient.cpf}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="px-6 sm:px-8 border-b border-slate-200 print:hidden shrink-0 overflow-x-auto">
-          <div className="flex gap-6 min-w-max">
-            <button 
-              onClick={() => setActiveTab('details')}
-              className={`py-4 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'details' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            >
-              <User className="h-4 w-4" />
-              Dados e Anamnese
-            </button>
-            <button 
-              onClick={() => setActiveTab('history')}
-              className={`py-4 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            >
-              <Activity className="h-4 w-4" />
-              Evolução e Fotos
-            </button>
-            <button 
-              onClick={() => setActiveTab('prescriptions')}
-              className={`py-4 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'prescriptions' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            >
-              <Pill className="h-4 w-4" />
-              Receitas e Exames
-            </button>
-            <button 
-              onClick={() => setActiveTab('certificates')}
-              className={`py-4 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'certificates' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            >
-              <FileBadge className="h-4 w-4" />
-              Atestados
-            </button>
-            <button 
-              onClick={() => setActiveTab('financial')}
-              className={`py-4 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'financial' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            >
-              <DollarSign className="h-4 w-4" />
-              Financeiro
-            </button>
-            <button 
-              onClick={() => setActiveTab('odontogram')}
-              className={`py-4 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'odontogram' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            >
-              <Activity className="h-4 w-4" />
-              Odontograma
-            </button>
           </div>
         </div>
 
@@ -852,8 +827,23 @@ export default function PatientModal({
         <motion.div 
           layout 
           transition={{ layout: { type: "spring", stiffness: 1000, damping: 50 } }}
-          className="p-6 sm:p-8 flex-1 print:p-0 relative"
+          className="p-4 sm:p-8 flex-1 print:p-0 relative"
         >
+          {/* Print Header (Only visible when printing) */}
+          <div className="hidden print:block border-b-2 border-slate-800 pb-6 mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900">{settings?.name || 'Clínica Médica'}</h1>
+                <p className="text-slate-500 mt-1">{settings?.address || 'Endereço não configurado'}</p>
+                <p className="text-slate-500">Telefone: {settings?.phone || 'Não configurado'}</p>
+              </div>
+              <div className="text-right text-sm text-slate-500">
+                <p>Data: {formatDateShort(getLocalDateString())}</p>
+                <p>Paciente: {patient.fullName}</p>
+                <p>CPF: {patient.cpf}</p>
+              </div>
+            </div>
+          </div>
           <AnimatePresence mode="popLayout">
             {/* TAB 1: Dados Cadastrais e Anamnese Base */}
             {activeTab === 'details' && (

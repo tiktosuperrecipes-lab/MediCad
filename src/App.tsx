@@ -76,12 +76,13 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              <Activity className="h-8 w-8 text-teal-200" />
-              <h1 className="text-xl font-bold tracking-tight">
+              <Activity className="h-7 w-7 sm:h-8 sm:w-8 text-teal-200" />
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight truncate max-w-[150px] sm:max-w-none">
                 {clinicSettings?.name || 'MediCad'}
               </h1>
             </div>
-            <nav className="flex gap-2 sm:gap-4 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex gap-2 sm:gap-4 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
               <button
                 onClick={() => handleTabChange('agenda')}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
@@ -89,7 +90,7 @@ export default function App() {
                 }`}
               >
                 <Calendar className="h-4 w-4" />
-                <span className="hidden sm:inline">Agenda</span>
+                <span>Agenda</span>
               </button>
               <button
                 onClick={() => handleTabChange('form')}
@@ -98,7 +99,7 @@ export default function App() {
                 }`}
               >
                 <UserPlus className="h-4 w-4" />
-                <span className="hidden sm:inline">Novo Cadastro</span>
+                <span>Novo</span>
               </button>
               <button
                 onClick={() => handleTabChange('list')}
@@ -107,7 +108,7 @@ export default function App() {
                 }`}
               >
                 <Users className="h-4 w-4" />
-                <span className="hidden sm:inline">Pacientes</span>
+                <span>Pacientes</span>
               </button>
               <button
                 onClick={() => handleTabChange('returns')}
@@ -116,7 +117,7 @@ export default function App() {
                 }`}
               >
                 <MessageSquare className="h-4 w-4" />
-                <span className="hidden sm:inline">Retornos</span>
+                <span>Retornos</span>
               </button>
               <button
                 onClick={() => handleTabChange('financial')}
@@ -125,7 +126,7 @@ export default function App() {
                 }`}
               >
                 <DollarSign className="h-4 w-4" />
-                <span className="hidden sm:inline">Financeiro</span>
+                <span>Financeiro</span>
               </button>
               <button
                 onClick={() => handleTabChange('settings')}
@@ -134,15 +135,69 @@ export default function App() {
                 }`}
               >
                 <SettingsIcon className="h-4 w-4" />
-                <span className="hidden sm:inline">Configurações</span>
+                <span>Config</span>
               </button>
             </nav>
+            {/* Mobile Branding Right (Optional) */}
+            <div className="md:hidden flex items-center">
+              <span className="text-[10px] font-bold bg-teal-600 px-2 py-1 rounded-full uppercase tracking-tighter border border-teal-500 shadow-sm">
+                v2.0
+              </span>
+            </div>
           </div>
         </div>
       </header>
 
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-1 z-40 flex items-center justify-around shadow-[0_-4px_10px_rgba(0,0,0,0.05)] print:hidden">
+        <button
+          onClick={() => handleTabChange('agenda')}
+          className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 ${
+            activeTab === 'agenda' ? 'text-teal-700 bg-teal-50' : 'text-slate-400'
+          }`}
+        >
+          <Calendar className="h-5 w-5" />
+          <span className="text-[10px] font-bold">Agenda</span>
+        </button>
+        <button
+          onClick={() => handleTabChange('list')}
+          className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 ${
+            activeTab === 'list' ? 'text-teal-700 bg-teal-50' : 'text-slate-400'
+          }`}
+        >
+          <Users className="h-5 w-5" />
+          <span className="text-[10px] font-bold">Pacientes</span>
+        </button>
+        <button
+          onClick={() => handleTabChange('form')}
+          className={`flex flex-col items-center justify-center -mt-6 h-14 w-14 rounded-full shadow-lg transition-all duration-300 ${
+            activeTab === 'form' ? 'bg-teal-700 text-white scale-110' : 'bg-teal-600 text-white'
+          }`}
+        >
+          <UserPlus className="h-6 w-6" />
+        </button>
+        <button
+          onClick={() => handleTabChange('financial')}
+          className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 ${
+            activeTab === 'financial' ? 'text-teal-700 bg-teal-50' : 'text-slate-400'
+          }`}
+        >
+          <DollarSign className="h-5 w-5" />
+          <span className="text-[10px] font-bold">Financeiro</span>
+        </button>
+        <button
+          onClick={() => handleTabChange('settings')}
+          className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 ${
+            activeTab === 'settings' ? 'text-teal-700 bg-teal-50' : 'text-slate-400'
+          }`}
+        >
+          <SettingsIcon className="h-5 w-5" />
+          <span className="text-[10px] font-bold">Config</span>
+        </button>
+      </nav>
+
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 print:p-0 print:py-0">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 sm:pb-8 print:p-0 print:py-0">
         <AnimatePresence mode="wait">
           {activeTab === 'form' && (
             <motion.div key="form" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="print:hidden">

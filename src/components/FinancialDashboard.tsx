@@ -471,39 +471,41 @@ export default function FinancialDashboard({ patients, onRefresh, isUnlocked, se
       </div>
 
       {/* Sub Tabs */}
-      <div className="flex border-b border-slate-200 print:hidden">
-        <button
-          onClick={() => setActiveSubTab('cashflow')}
-          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
-            activeSubTab === 'cashflow' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Controle de Caixa
-        </button>
-        <button
-          onClick={() => setActiveSubTab('expenses')}
-          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
-            activeSubTab === 'expenses' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Livro Caixa (Despesas)
-        </button>
-        <button
-          onClick={() => setActiveSubTab('taxes')}
-          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
-            activeSubTab === 'taxes' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Impostos & Recibos
-        </button>
-        <button
-          onClick={() => setActiveSubTab('simulator')}
-          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
-            activeSubTab === 'simulator' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Simulador de Lucro
-        </button>
+      <div className="flex border-b border-slate-200 print:hidden overflow-x-auto hide-scrollbar">
+        <div className="flex min-w-max">
+          <button
+            onClick={() => setActiveSubTab('cashflow')}
+            className={`px-4 sm:px-6 py-3 font-bold text-[10px] sm:text-sm uppercase tracking-wider border-b-2 transition-all ${
+              activeSubTab === 'cashflow' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Fluxo de Caixa
+          </button>
+          <button
+            onClick={() => setActiveSubTab('expenses')}
+            className={`px-4 sm:px-6 py-3 font-bold text-[10px] sm:text-sm uppercase tracking-wider border-b-2 transition-all ${
+              activeSubTab === 'expenses' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Livro Caixa
+          </button>
+          <button
+            onClick={() => setActiveSubTab('taxes')}
+            className={`px-4 sm:px-6 py-3 font-bold text-[10px] sm:text-sm uppercase tracking-wider border-b-2 transition-all ${
+              activeSubTab === 'taxes' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Impostos
+          </button>
+          <button
+            onClick={() => setActiveSubTab('simulator')}
+            className={`px-4 sm:px-6 py-3 font-bold text-[10px] sm:text-sm uppercase tracking-wider border-b-2 transition-all ${
+              activeSubTab === 'simulator' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Simulador
+          </button>
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
@@ -517,25 +519,25 @@ export default function FinancialDashboard({ patients, onRefresh, isUnlocked, se
             className="space-y-6"
           >
             {/* Cashflow Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <motion.div variants={itemVariants} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <motion.div variants={itemVariants} className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
                     <TrendingUp className="h-5 w-5" />
                   </div>
-                  <h3 className="font-semibold text-slate-700">
+                  <h3 className="font-bold text-slate-700 text-sm sm:text-base">
                     {selectedMonth === 'all' ? 'Recebido no Ano' : 'Recebido no Mês'}
                   </h3>
                 </div>
-                <p className="text-3xl font-bold text-emerald-700">
+                <p className="text-2xl sm:text-3xl font-bold text-emerald-700">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receivedTotal)}
                 </p>
-                <p className="text-xs text-slate-500 mt-1">Total de pagamentos com status 'Pago'</p>
+                <p className="text-[10px] sm:text-xs text-slate-500 mt-1">Total de pagamentos com status 'Pago'</p>
               </motion.div>
 
               <motion.div 
                 variants={itemVariants} 
-                className="bg-rose-50 p-6 rounded-xl border border-rose-200 shadow-sm cursor-pointer hover:bg-rose-100 transition-colors group"
+                className="bg-rose-50 p-4 sm:p-6 rounded-xl border border-rose-200 shadow-sm cursor-pointer hover:bg-rose-100 transition-colors group"
                 onClick={() => {
                   const element = document.getElementById('patients-debt-list');
                   if (element) element.scrollIntoView({ behavior: 'smooth' });
@@ -546,29 +548,29 @@ export default function FinancialDashboard({ patients, onRefresh, isUnlocked, se
                     <div className="p-2 bg-rose-100 text-rose-600 rounded-lg group-hover:bg-rose-200 transition-colors">
                       <AlertTriangle className="h-5 w-5" />
                     </div>
-                    <h3 className="font-semibold text-rose-800">Débitos Totais</h3>
+                    <h3 className="font-bold text-rose-800 text-sm sm:text-base">Débitos Totais</h3>
                   </div>
-                  <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider group-hover:text-rose-600 transition-colors">Ver Lista ↓</span>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-rose-400 uppercase tracking-wider group-hover:text-rose-600 transition-colors">Ver ↓</span>
                 </div>
-                <p className="text-3xl font-bold text-rose-700">
+                <p className="text-2xl sm:text-3xl font-bold text-rose-700">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalOutstandingDebt)}
                 </p>
-                <p className="text-xs text-rose-600 mt-1 italic">Soma de todos os orçamentos não quitados.</p>
+                <p className="text-[10px] sm:text-xs text-rose-600 mt-1 italic font-medium">Soma de orçamentos não quitados.</p>
               </motion.div>
 
-              <motion.div variants={itemVariants} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+              <motion.div variants={itemVariants} className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
                     <Clock className="h-5 w-5" />
                   </div>
-                  <h3 className="font-semibold text-slate-700">
+                  <h3 className="font-bold text-slate-700 text-sm sm:text-base">
                     {selectedMonth === 'all' ? 'A Receber (Ano)' : 'A Receber (Mês)'}
                   </h3>
                 </div>
-                <p className="text-3xl font-bold text-amber-700">
+                <p className="text-2xl sm:text-3xl font-bold text-amber-700">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pendingTotal)}
                 </p>
-                <p className="text-xs text-slate-500 mt-1">Total de pagamentos com status 'Pendente'</p>
+                <p className="text-[10px] sm:text-xs text-slate-500 mt-1">Total com status 'Pendente'</p>
               </motion.div>
             </div>
 
