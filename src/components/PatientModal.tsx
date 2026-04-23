@@ -2502,10 +2502,10 @@ export default function PatientModal({
                 <img 
                   src={src} 
                   alt="Visualização Clínica" 
-                  className={`max-w-full max-h-[95vh] object-contain transition-all duration-300 ${useSharpnessFilter[isObj ? (foto as PatientPhoto).id : 'temp'] ? 'contrast-[1.1] saturate-[1.1] brightness-[1.05] shadow-lg' : ''}`}
+                  className={`max-w-full max-h-[95vh] object-contain transition-all duration-300 ${useSharpnessFilter[isObj ? (viewingPhoto as PatientPhoto).id : 'temp'] ? 'contrast-[1.1] saturate-[1.1] brightness-[1.05] shadow-lg' : ''}`}
                   style={{ 
-                    imageRendering: useSharpnessFilter[isObj ? (foto as PatientPhoto).id : 'temp'] ? 'crisp-edges' : 'auto',
-                    filter: useSharpnessFilter[isObj ? (foto as PatientPhoto).id : 'temp'] ? 'contrast(120%) brightness(105%)' : 'none'
+                    imageRendering: useSharpnessFilter[isObj ? (viewingPhoto as PatientPhoto).id : 'temp'] ? 'crisp-edges' : 'auto',
+                    filter: useSharpnessFilter[isObj ? (viewingPhoto as PatientPhoto).id : 'temp'] ? 'contrast(120%) brightness(105%)' : 'none'
                   }}
                 />
               </div>
@@ -2628,10 +2628,10 @@ export default function PatientModal({
                           <div className="relative flex items-center">
                             <input
                               type="checkbox"
-                              checked={!!useSharpnessFilter[isObj ? (foto as PatientPhoto).id : 'temp']}
+                              checked={!!useSharpnessFilter[isObj ? (viewingPhoto as PatientPhoto).id : 'temp']}
                               onChange={(e) => setUseSharpnessFilter(prev => ({
                                 ...prev,
-                                [isObj ? (foto as PatientPhoto).id : 'temp']: e.target.checked
+                                [isObj ? (viewingPhoto as PatientPhoto).id : 'temp']: e.target.checked
                               }))}
                               className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-slate-300 bg-white transition-all checked:bg-teal-600 checked:border-teal-600 focus:outline-none"
                             />
