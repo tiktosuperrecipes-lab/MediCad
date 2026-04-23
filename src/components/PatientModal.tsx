@@ -103,6 +103,7 @@ export default function PatientModal({
   const [useSharpnessFilter, setUseSharpnessFilter] = useState<{ [key: string]: boolean }>({});
   const [editingPaymentFeeId, setEditingPaymentFeeId] = useState<string | null>(null);
   const [newFeeValue, setNewFeeValue] = useState<string>('0');
+  const [feeCalcType, setFeeCalcType] = useState<'value' | 'percent'>('value');
 
   // Auto-calculate card fees
   useEffect(() => {
@@ -1910,13 +1911,45 @@ export default function PatientModal({
 
                     {(paymentForm.method === 'credit' || paymentForm.method === 'debit') && (
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Taxa (R$)</label>
-                        <input
-                          type="number"
-                          value={paymentForm.cardFee}
-                          onChange={(e) => setPaymentForm({...paymentForm, cardFee: parseFloat(e.target.value) || 0})}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none bg-rose-50 text-rose-700 font-medium"
-                        />
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-sm font-medium text-slate-700">Taxa</label>
+                          <div className="flex bg-slate-100 rounded p-0.5">
+                            <button
+                              onClick={() => setFeeCalcType('value')}
+                              className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition-all ${feeCalcType === 'value' ? 'bg-white shadow-sm text-teal-600' : 'text-slate-400'}`}
+                            >
+                              R$
+                            </button>
+                            <button
+                              onClick={() => setFeeCalcType('percent')}
+                              className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition-all ${feeCalcType === 'percent' ? 'bg-white shadow-sm text-teal-600' : 'text-slate-400'}`}
+                            >
+                              %
+                            </button>
+                          </div>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={feeCalcType === 'percent' ? '' : paymentForm.cardFee}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              if (feeCalcType === 'percent') {
+                                const calculated = (paymentForm.amount * val) / 100;
+                                setPaymentForm({...paymentForm, cardFee: Number(calculated.toFixed(2))});
+                              } else {
+                                setPaymentForm({...paymentForm, cardFee: val});
+                              }
+                            }}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none bg-rose-50 text-rose-700 font-medium"
+                            placeholder={feeCalcType === 'percent' ? 'Digitar %' : ''}
+                          />
+                          {feeCalcType === 'percent' && paymentForm.cardFee > 0 && (
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-rose-400">
+                              = {formatCurrency(paymentForm.cardFee)}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -2112,15 +2145,33 @@ export default function PatientModal({
                                     Taxa Cartão: 
                                     {editingPaymentFeeId === payment.id ? (
                                       <div className="flex items-center gap-1">
+                                        <div className="flex bg-white border border-teal-200 rounded p-0.5 gap-0.5">
+                                          <button
+                                            onClick={() => setFeeCalcType('value')}
+                                            className={`text-[8px] p-0.5 rounded leading-none transition-all ${feeCalcType === 'value' ? 'bg-teal-600 text-white' : 'text-slate-400'}`}
+                                          >
+                                            $
+                                          </button>
+                                          <button
+                                            onClick={() => setFeeCalcType('percent')}
+                                            className={`text-[8px] p-0.5 rounded leading-none transition-all ${feeCalcType === 'percent' ? 'bg-teal-600 text-white' : 'text-slate-400'}`}
+                                          >
+                                            %
+                                          </button>
+                                        </div>
                                         <input
                                           type="number"
                                           step="0.01"
                                           value={newFeeValue}
                                           onChange={(e) => setNewFeeValue(e.target.value)}
                                           autoFocus
+                                          placeholder={feeCalcType === 'percent' ? '%' : 'R$'}
                                           onKeyDown={async (e) => {
                                             if (e.key === 'Enter') {
-                                              const fee = parseFloat(newFeeValue) || 0;
+                                              let fee = parseFloat(newFeeValue) || 0;
+                                              if (feeCalcType === 'percent') {
+                                                fee = Number(((payment.amount * fee) / 100).toFixed(2));
+                                              }
                                               try {
                                                 await updatePaymentFee(patient.id, payment.id, fee);
                                                 const updatedPatient = {
@@ -2142,7 +2193,10 @@ export default function PatientModal({
                                         />
                                         <button 
                                           onClick={async () => {
-                                            const fee = parseFloat(newFeeValue) || 0;
+                                            let fee = parseFloat(newFeeValue) || 0;
+                                            if (feeCalcType === 'percent') {
+                                              fee = Number(((payment.amount * fee) / 100).toFixed(2));
+                                            }
                                             try {
                                               await updatePaymentFee(patient.id, payment.id, fee);
                                               const updatedPatient = {
