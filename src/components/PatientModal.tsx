@@ -1339,7 +1339,10 @@ export default function PatientModal({
                     className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
                   >
                     {isUploadingPhoto ? (
-                      <span className="animate-pulse">Processando...</span>
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="animate-pulse">Comprimindo...</span>
+                      </div>
                     ) : (
                       <>
                         <Upload className="h-4 w-4" />
@@ -2683,10 +2686,19 @@ export default function PatientModal({
                 <motion.p 
                   initial={{ opacity: 0, y: -5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-xs text-teal-600 font-bold flex items-center gap-1"
+                  className={`text-xs font-bold flex flex-col gap-1 ${newPhotoSize > 1000 ? 'text-rose-600' : 'text-teal-600'}`}
                 >
-                  <ImageIcon className="h-3 w-3" />
-                  Esta foto ocupa {newPhotoSize} KB
+                  <div className="flex items-center gap-1">
+                    <ImageIcon className="h-3 w-3" />
+                    <span>Tamanho ideal: Abaixo de 500 KB</span>
+                  </div>
+                  <div className="flex items-center gap-1 pl-4">
+                    {newPhotoSize > 1000 ? (
+                      <span>⚠️ Esta foto ainda está grande ({newPhotoSize} KB). Recomendamos usar fotos com menos brilho ou resolução.</span>
+                    ) : (
+                      <span>Tamanho final: {newPhotoSize} KB</span>
+                    )}
+                  </div>
                 </motion.p>
               )}
               <div className="flex justify-end gap-2">

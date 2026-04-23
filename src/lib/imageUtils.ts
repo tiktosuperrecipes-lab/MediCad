@@ -1,4 +1,4 @@
-export const compressImage = (file: File, maxWidth: number = 1000, quality: number = 0.7): Promise<string> => {
+export const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.6): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -34,8 +34,20 @@ export const compressImage = (file: File, maxWidth: number = 1000, quality: numb
 
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Compress to webp
-        const dataUrl = canvas.toDataURL('image/webp', quality);
+        // Try WebP first if quality is provided (standard clinical quality)
+        let dataUrl = canvas.toDataURL('image/webp', quality);
+        
+        // Fallback to JPEG if WebP is not supported (canvas returns PNG if type not supported)
+        // or if somehow PNG is larger than we want
+        if (dataUrl.startsWith('data:image/png') || dataUrl.length > 800000) {
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        
+        // If still too large (> 800KB base64), try more aggressive compression
+        if (dataUrl.length > 800000) {
+          dataUrl = canvas.toDataURL('image/jpeg', 0.4);
+        }
+
         resolve(dataUrl);
       };
       img.onerror = (error) => reject(error);
