@@ -423,6 +423,65 @@ export async function deleteFinancialRecord(id: string, patientId?: string): Pro
   }
 }
 
+export async function syncAllFinancialData(): Promise<{ fixedBudgets: number, syncedPayments: number }> {
+  try {
+    const { getDoc } = await import('firebase/firestore');
+    const patients = await getPatients();
+    let fixedBudgets = 0;
+    let syncedPayments = 0;
+
+    for (const patient of patients) {
+      let patientNeedsUpdate = false;
+      const updatedFinanceiro = [...(patient.financeiro || [])];
+      
+      // 1. Relink and Recalculate Budgets
+      updatedFinanceiro.forEach((item: any, idx) => {
+        if (item.recordType === 'budget') {
+          const budgetId = item.id;
+          const totalPaid = updatedFinanceiro
+            .filter((f: any) => f.recordType === 'payment' && f.linkedBudgetId === budgetId)
+            .reduce((sum, p: any) => sum + p.amount, 0);
+          
+          if (item.paidAmount !== totalPaid) {
+            updatedFinanceiro[idx] = { ...item, paidAmount: totalPaid };
+            patientNeedsUpdate = true;
+            fixedBudgets++;
+          }
+        }
+      });
+
+      // 2. Sync Payments to Global Financial
+      const payments = updatedFinanceiro.filter((f: any) => f.recordType === 'payment') as any[];
+      for (const pay of payments) {
+        await addGlobalFinancialRecord({
+          id: pay.id,
+          patientId: patient.id,
+          patientName: patient.fullName,
+          date: pay.date,
+          amount: pay.amount,
+          netAmount: pay.netAmount || pay.amount,
+          cardFee: pay.cardFee || 0,
+          method: pay.method,
+          procedure: pay.procedure || pay.notes || 'Sincronizado',
+          status: pay.status === 'Pago' || pay.status === 'Pendente' ? pay.status : 'Pago',
+          receiptIssued: pay.receiptIssued || false,
+          createdAt: pay.createdAt || new Date().toISOString()
+        });
+        syncedPayments++;
+      }
+
+      if (patientNeedsUpdate) {
+        await savePatient({ ...patient, financeiro: updatedFinanceiro });
+      }
+    }
+
+    return { fixedBudgets, syncedPayments };
+  } catch (error) {
+    console.error("Erro na sincronização global:", error);
+    throw error;
+  }
+}
+
 export async function updateGlobalFinancialRecordStatus(id: string, status: 'Pendente' | 'Pago'): Promise<void> {
   try {
     const { getDoc } = await import('firebase/firestore');

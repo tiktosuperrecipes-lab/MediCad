@@ -7,7 +7,7 @@ import { Patient, GlobalFinancialRecord, ExpenseRecord } from '../types';
 import { calculateMonthlyIR } from '../lib/taxCalculator';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateLong, formatDateShort } from '../lib/dateUtils';
-import { savePatient, getGlobalFinancialRecords, updateGlobalFinancialRecordStatus, updateGlobalFinancialRecordReceipt, getExpenses, saveExpense, deleteExpense, deleteFinancialRecord } from '../lib/storage';
+import { savePatient, getGlobalFinancialRecords, updateGlobalFinancialRecordStatus, updateGlobalFinancialRecordReceipt, getExpenses, saveExpense, deleteExpense, deleteFinancialRecord, syncAllFinancialData } from '../lib/storage';
 import BusinessCalculator from './BusinessCalculator';
 
 interface FinancialDashboardProps {
@@ -31,6 +31,7 @@ export default function FinancialDashboard({ patients, onRefresh, isUnlocked, se
   const [globalRecords, setGlobalRecords] = useState<GlobalFinancialRecord[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const [expenseForm, setExpenseForm] = useState<Omit<ExpenseRecord, 'id' | 'createdAt'>>({
     date: todayStr,
@@ -147,6 +148,22 @@ export default function FinancialDashboard({ patients, onRefresh, isUnlocked, se
       onRefresh?.();
     } catch (error) {
       alert('Erro ao atualizar recibo.');
+    }
+  };
+
+  const handleSyncAll = async () => {
+    if (isSyncing) return;
+    if (!window.confirm('Este processo irá recalcular todos os saldos de orçamentos e sincronizar os registros de cada paciente com o painel financeiro. Deseja continuar?')) return;
+    
+    setIsSyncing(true);
+    try {
+      const results = await syncAllFinancialData();
+      onRefresh?.();
+      alert(`Sincronização concluída!\n\n${results.fixedBudgets} orçamentos recalculados.\n${results.syncedPayments} pagamentos verificados.`);
+    } catch (error) {
+      alert('Erro durante a sincronização.');
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -459,25 +476,35 @@ export default function FinancialDashboard({ patients, onRefresh, isUnlocked, se
           <h2 className="text-2xl font-bold text-slate-800">Financeiro</h2>
           <p className="text-slate-500">Controle de caixa e impostos da clínica.</p>
         </div>
-        <div className="flex gap-2">
-          <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white"
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleSyncAll}
+            disabled={isSyncing}
+            className={`flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold shadow-sm transition-all ${isSyncing ? 'opacity-50' : 'hover:bg-slate-50 hover:border-teal-400 text-teal-600'}`}
           >
-            {months.map(m => (
-              <option key={m.value} value={m.value}>{m.label}</option>
-            ))}
-          </select>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white"
-          >
-            {years.map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+            <Calculator className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Sincronizando...' : 'Recalcular Tudo'}
+          </button>
+          <div className="flex gap-2">
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white font-bold text-sm"
+            >
+              {months.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white font-bold text-sm"
+            >
+              {years.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
