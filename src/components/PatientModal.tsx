@@ -100,6 +100,7 @@ export default function PatientModal({
 
   const [newPhotoSize, setNewPhotoSize] = useState<number | null>(null);
   const [editingEvolution, setEditingEvolution] = useState<{index: number, text: string} | null>(null);
+  const [useSharpnessFilter, setUseSharpnessFilter] = useState<{ [key: string]: boolean }>({});
 
   // Auto-calculate card fees
   useEffect(() => {
@@ -2501,7 +2502,11 @@ export default function PatientModal({
                 <img 
                   src={src} 
                   alt="Visualização Clínica" 
-                  className="max-w-full max-h-[95vh] object-contain"
+                  className={`max-w-full max-h-[95vh] object-contain transition-all duration-300 ${useSharpnessFilter[isObj ? (foto as PatientPhoto).id : 'temp'] ? 'contrast-[1.1] saturate-[1.1] brightness-[1.05] shadow-lg' : ''}`}
+                  style={{ 
+                    imageRendering: useSharpnessFilter[isObj ? (foto as PatientPhoto).id : 'temp'] ? 'crisp-edges' : 'auto',
+                    filter: useSharpnessFilter[isObj ? (foto as PatientPhoto).id : 'temp'] ? 'contrast(120%) brightness(105%)' : 'none'
+                  }}
                 />
               </div>
 
@@ -2617,6 +2622,27 @@ export default function PatientModal({
                           <p className="text-sm">Nenhum detalhe adicional registrado para esta foto.</p>
                         </div>
                       )}
+
+                      <div className="pt-4 border-t border-slate-100">
+                        <label className="flex items-center gap-3 cursor-pointer group p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-teal-300 transition-all">
+                          <div className="relative flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={!!useSharpnessFilter[isObj ? (foto as PatientPhoto).id : 'temp']}
+                              onChange={(e) => setUseSharpnessFilter(prev => ({
+                                ...prev,
+                                [isObj ? (foto as PatientPhoto).id : 'temp']: e.target.checked
+                              }))}
+                              className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-slate-300 bg-white transition-all checked:bg-teal-600 checked:border-teal-600 focus:outline-none"
+                            />
+                            <svg className="absolute h-3.5 w-3.5 pointer-events-none hidden peer-checked:block text-white left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          </div>
+                          <div>
+                            <span className="text-sm font-bold text-slate-700 group-hover:text-teal-600 transition-colors">Filtro de Nitidez (Leitura)</span>
+                            <p className="text-[10px] text-slate-500">Melhora contraste para ler textos comprimidos</p>
+                          </div>
+                        </label>
+                      </div>
                     </>
                   )}
                 </div>
@@ -2690,10 +2716,10 @@ export default function PatientModal({
                 >
                   <div className="flex items-center gap-1">
                     <ImageIcon className="h-3 w-3" />
-                    <span>Tamanho ideal: Abaixo de 150 KB</span>
+                    <span>Tamanho ideal: Abaixo de 80 KB</span>
                   </div>
                   <div className="flex items-center gap-1 pl-4">
-                    {newPhotoSize > 200 ? (
+                    {newPhotoSize > 150 ? (
                       <span>⚠️ Esta foto ainda está pesada ({newPhotoSize} KB). O Firebase tem limite de 1MB por paciente.</span>
                     ) : (
                       <span>Tamanho final: {newPhotoSize} KB</span>
