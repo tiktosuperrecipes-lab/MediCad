@@ -2690,11 +2690,11 @@ export default function PatientModal({
                 >
                   <div className="flex items-center gap-1">
                     <ImageIcon className="h-3 w-3" />
-                    <span>Tamanho ideal: Abaixo de 500 KB</span>
+                    <span>Tamanho ideal: Abaixo de 150 KB</span>
                   </div>
                   <div className="flex items-center gap-1 pl-4">
-                    {newPhotoSize > 1000 ? (
-                      <span>⚠️ Esta foto ainda está grande ({newPhotoSize} KB). Recomendamos usar fotos com menos brilho ou resolução.</span>
+                    {newPhotoSize > 200 ? (
+                      <span>⚠️ Esta foto ainda está pesada ({newPhotoSize} KB). O Firebase tem limite de 1MB por paciente.</span>
                     ) : (
                       <span>Tamanho final: {newPhotoSize} KB</span>
                     )}

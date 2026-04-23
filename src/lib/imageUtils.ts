@@ -1,4 +1,4 @@
-export const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.6): Promise<string> => {
+export const compressImage = (file: File, maxWidth: number = 700, targetKb: number = 150): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -34,19 +34,25 @@ export const compressImage = (file: File, maxWidth: number = 800, quality: numbe
 
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Try WebP first if quality is provided (standard clinical quality)
-        let dataUrl = canvas.toDataURL('image/webp', quality);
+        // Iterative compression to hit target size
+        // Base64 size = approx 1.33 * binary size
+        const targetBytes = targetKb * 1024 * 0.75; 
         
-        // Fallback to JPEG if WebP is not supported (canvas returns PNG if type not supported)
-        // or if somehow PNG is larger than we want
-        if (dataUrl.startsWith('data:image/png') || dataUrl.length > 800000) {
-          dataUrl = canvas.toDataURL('image/jpeg', quality);
-        }
+        let quality = 0.8;
+        let dataUrl = '';
+        let type = 'image/webp';
         
-        // If still too large (> 800KB base64), try more aggressive compression
-        if (dataUrl.length > 800000) {
-          dataUrl = canvas.toDataURL('image/jpeg', 0.4);
+        // Check if webp is supported
+        const testCanvas = document.createElement('canvas');
+        if (testCanvas.toDataURL('image/webp').indexOf('data:image/webp') !== 0) {
+          type = 'image/jpeg';
         }
+
+        // Try to compress until we hit the target size or minimum quality
+        do {
+          dataUrl = canvas.toDataURL(type, quality);
+          quality -= 0.1;
+        } while (dataUrl.length > targetBytes * 1.33 && quality > 0.1);
 
         resolve(dataUrl);
       };
