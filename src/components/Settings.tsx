@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Save, Building2, Trash2, ShieldAlert, Lock, AlertTriangle, DollarSign, Plus, List, Edit3 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Save, Building2, Trash2, ShieldAlert, Lock, AlertTriangle, DollarSign, Plus, List, Edit3, Download, Upload, Database } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ClinicSettings, getSettings, saveSettings } from '../lib/settings';
-import { resetCollection, clearPatientClinicalData } from '../lib/storage';
+import { resetCollection, clearPatientClinicalData, exportGlobalBackup, importGlobalBackup } from '../lib/storage';
 
 interface SettingsProps {
   onSave?: () => void;
@@ -24,6 +24,8 @@ export default function Settings({ onSave }: SettingsProps) {
   const [password, setPassword] = useState('');
   const [isAuth, setIsAuth] = useState(false);
   const [resetStatus, setResetStatus] = useState<{type: string, success: boolean} | null>(null);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [newProcedure, setNewProcedure] = useState({ name: '', description: '', basePrice: 0 });
   const [newCardFee, setNewCardFee] = useState({ installments: 1, percentage: 0 });
 
@@ -55,10 +57,12 @@ export default function Settings({ onSave }: SettingsProps) {
         await resetCollection('pacientes');
         await resetCollection('agenda');
         await resetCollection('financeiro_geral');
+        await resetCollection('livro_caixa');
       } else if (type === 'patients') {
         await resetCollection('pacientes');
       } else if (type === 'financial') {
         await resetCollection('financeiro_geral');
+        await resetCollection('livro_caixa');
         await clearPatientClinicalData('financial');
       } else if (type === 'agenda') {
         await resetCollection('agenda');
@@ -71,6 +75,56 @@ export default function Settings({ onSave }: SettingsProps) {
       console.error("Erro ao resetar dados:", error);
       alert("Erro ao resetar dados. Verifique o console.");
     }
+  };
+
+  const handleExportAll = async () => {
+    setBackupLoading(true);
+    try {
+      const json = await exportGlobalBackup();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+      a.download = `medicad-backup-completo-${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert("Erro ao gerar backup.");
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleImportAll = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!window.confirm("ATENÇÃO: Restaurar um backup completo irá SOBRESCREVER os dados existentes com os dados do arquivo. Deseja continuar?")) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setBackupLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = event.target?.result as string;
+        const result = await importGlobalBackup(json);
+        if (result.success) {
+          alert(`Backup restaurado com sucesso!\n\nRegistros importados:\n- Pacientes: ${result.stats.pacientes || 0}\n- Agenda: ${result.stats.agenda || 0}\n- Financeiro: ${result.stats.financeiro_geral || 0}\n- Despesas: ${result.stats.livro_caixa || 0}`);
+          if (onSave) onSave();
+          window.location.reload(); // Reload to ensure all components refresh with new database state
+        }
+      } catch (error) {
+        alert("Erro ao importar backup. O arquivo pode estar corrompido ou em formato inválido.");
+      } finally {
+        setBackupLoading(false);
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleAuth = (e: React.FormEvent) => {
@@ -429,6 +483,69 @@ export default function Settings({ onSave }: SettingsProps) {
           </div>
         </form>
       </div>
+      
+      {/* Seção de Backup de Dados */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
+      >
+        <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center gap-2">
+          <Database className="h-5 w-5 text-teal-600" />
+          <h2 className="font-semibold text-slate-800">Cópia de Segurança (Backup)</h2>
+        </div>
+        <div className="p-6">
+          <p className="text-sm text-slate-500 mb-6">
+            Exporte todos os dados do sistema (pacientes, agenda, financeiro e configurações) para um arquivo JSON. 
+            Você pode usar este arquivo para restaurar seus dados em outro dispositivo ou como garantia de segurança.
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              onClick={handleExportAll}
+              disabled={backupLoading}
+              className="flex items-center justify-center gap-3 p-4 border border-teal-200 bg-teal-50/50 rounded-xl hover:bg-teal-50 transition-all group disabled:opacity-50"
+            >
+              <div className="p-2 bg-teal-100 rounded-lg group-hover:bg-teal-200 transition-colors">
+                <Download className="h-5 w-5 text-teal-600" />
+              </div>
+              <div className="text-left">
+                <span className="block font-bold text-teal-800">Exportar Backup</span>
+                <span className="text-[10px] text-teal-600 uppercase font-bold">Salvar tudo em .json</span>
+              </div>
+            </button>
+
+            <input 
+              type="file" 
+              accept=".json" 
+              ref={fileInputRef} 
+              onChange={handleImportAll} 
+              className="hidden" 
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={backupLoading}
+              className="flex items-center justify-center gap-3 p-4 border border-slate-200 bg-slate-50 rounded-xl hover:bg-slate-100 transition-all group disabled:opacity-50"
+            >
+              <div className="p-2 bg-slate-200 rounded-lg group-hover:bg-slate-300 transition-colors">
+                <Upload className="h-5 w-5 text-slate-600" />
+              </div>
+              <div className="text-left">
+                <span className="block font-bold text-slate-800">Restaurar Backup</span>
+                <span className="text-[10px] text-slate-500 uppercase font-bold">Importar de um .json</span>
+              </div>
+            </button>
+          </div>
+          
+          {backupLoading && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-teal-600 font-medium animate-pulse">
+              <Database className="h-4 w-4 animate-spin" />
+              Processando dados... aguarde.
+            </div>
+          )}
+        </div>
+      </motion.div>
 
       {/* Seção de Reset de Dados */}
       <motion.div 

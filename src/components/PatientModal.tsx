@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Edit2, Edit3, FileX, AlertCircle, MessageCircle, Check, AlertTriangle, Link, ExternalLink, Globe } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, Edit2, Edit3, FileX, AlertCircle, MessageCircle, Check, AlertTriangle, Link, ExternalLink, Globe } from 'lucide-react';
+import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto, OdontogramData, PatientLink } from '../types';
 import { savePatient, addClinicalEvolution, addFinancialRecord, updateFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution, updatePaymentFee, addPatientLink, removePatientLink } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
@@ -79,6 +79,9 @@ export default function PatientModal({
   // Photo Gallery State
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState<string | PatientPhoto | null>(null);
+  const [photoZoom, setPhotoZoom] = useState(1);
+  const [isPhotoFullscreen, setIsPhotoFullscreen] = useState(false);
+  const photoControls = useAnimation();
   const [pendingPhoto, setPendingPhoto] = useState<{base64: string, description: string, linkedConsultation: string} | null>(null);
   const [isEditingPhotoDetails, setIsEditingPhotoDetails] = useState(false);
   const [editPhotoForm, setEditPhotoForm] = useState({ description: '', linkedConsultation: '' });
@@ -2775,24 +2778,99 @@ export default function PatientModal({
         const linked = isObj ? (viewingPhoto as PatientPhoto).linkedConsultation : '';
 
         return (
-          <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
-            <div className="relative max-w-6xl w-full max-h-[95vh] flex flex-col md:flex-row bg-white rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-75">
+          <div className="fixed inset-0 z-[60] bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-0 sm:p-6 transition-all duration-300">
+            <div className={`relative ${isPhotoFullscreen ? 'w-screen h-screen max-w-none max-h-none rounded-0' : 'max-w-6xl w-full max-h-[95vh] rounded-2xl'} flex flex-col md:flex-row bg-white overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-75`}>
               
               {/* Image Area */}
-              <div className="flex-1 bg-slate-100 flex items-center justify-center relative min-h-[50vh] md:min-h-0">
-                <img 
-                  src={src} 
-                  alt="Visualização Clínica" 
-                  className={`max-w-full max-h-[95vh] object-contain transition-all duration-300 ${useSharpnessFilter[isObj ? (viewingPhoto as PatientPhoto).id : 'temp'] ? 'contrast-[1.1] saturate-[1.1] brightness-[1.05] shadow-lg' : ''}`}
-                  style={{ 
-                    imageRendering: useSharpnessFilter[isObj ? (viewingPhoto as PatientPhoto).id : 'temp'] ? 'crisp-edges' : 'auto',
-                    filter: useSharpnessFilter[isObj ? (viewingPhoto as PatientPhoto).id : 'temp'] ? 'contrast(120%) brightness(105%)' : 'none'
-                  }}
-                />
+              <div 
+                className="flex-1 bg-[#1a1a1a] flex items-center justify-center relative min-h-[50vh] md:min-h-0 overflow-hidden cursor-grab active:cursor-grabbing group"
+                onWheel={(e) => {
+                  if (e.deltaY < 0) {
+                    setPhotoZoom(prev => Math.min(8, prev + 0.1));
+                  } else {
+                    setPhotoZoom(prev => Math.max(0.5, prev - 0.1));
+                  }
+                }}
+              >
+                <motion.div
+                  drag={true}
+                  animate={photoControls}
+                  dragMomentum={false}
+                  dragElastic={0}
+                  dragConstraints={{ left: -1000, right: 1000, top: -1000, bottom: 1000 }}
+                  style={{ scale: photoZoom }}
+                  className="flex items-center justify-center w-full h-full"
+                >
+                  <img 
+                    src={src} 
+                    alt="Visualização Clínica" 
+                    className={`max-w-full max-h-full object-contain transition-all duration-300 ${useSharpnessFilter[isObj ? (viewingPhoto as PatientPhoto).id : 'temp'] ? 'contrast-[1.1] saturate-[1.1] brightness-[1.05]' : ''}`}
+                    style={{ 
+                      imageRendering: useSharpnessFilter[isObj ? (viewingPhoto as PatientPhoto).id : 'temp'] ? 'crisp-edges' : 'auto',
+                      filter: useSharpnessFilter[isObj ? (viewingPhoto as PatientPhoto).id : 'temp'] ? 'contrast(120%) brightness(105%)' : 'none',
+                      userSelect: 'none'
+                    }}
+                    draggable={false}
+                  />
+                </motion.div>
+
+                {/* Floating Image Controls */}
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/20 p-2 rounded-full shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+                  <button 
+                    onClick={() => setPhotoZoom(prev => Math.max(0.5, prev - 0.25))}
+                    className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
+                    title="Diminuir Zoom"
+                  >
+                    <ZoomOut className="h-5 w-5" />
+                  </button>
+                  <div className="w-12 text-center text-white text-xs font-bold font-mono">
+                    {Math.round(photoZoom * 100)}%
+                  </div>
+                  <button 
+                    onClick={() => setPhotoZoom(prev => Math.min(5, prev + 0.25))}
+                    className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
+                    title="Aumentar Zoom"
+                  >
+                    <ZoomIn className="h-5 w-5" />
+                  </button>
+                  <div className="w-px h-4 bg-white/20 mx-1"></div>
+                  <button 
+                    onClick={() => {
+                      setPhotoZoom(1);
+                      photoControls.start({ x: 0, y: 0, scale: 1 });
+                    }}
+                    className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
+                    title="Resetar Zoom"
+                  >
+                    <RotateCcw className="h-5 w-5" />
+                  </button>
+                  <button 
+                    onClick={() => setIsPhotoFullscreen(!isPhotoFullscreen)}
+                    className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
+                    title={isPhotoFullscreen ? "Sair da Tela Cheia" : "Tela Cheia"}
+                  >
+                    {isPhotoFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+                  </button>
+                </div>
+
+                {/* Corner Exit for Fullscreen */}
+                {isPhotoFullscreen && (
+                  <button 
+                    onClick={() => {
+                      setIsPhotoFullscreen(false);
+                      setPhotoZoom(1);
+                      setViewingPhoto(null);
+                      photoControls.set({ x: 0, y: 0, scale: 1 });
+                    }}
+                    className="absolute top-6 right-6 p-4 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md border border-white/20 transition-all z-20"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                )}
               </div>
 
               {/* Details Sidebar */}
-              <div className="w-full md:w-80 bg-white flex flex-col border-l border-slate-200">
+              <div className={`w-full md:w-80 bg-white flex flex-col border-l border-slate-200 transition-all duration-300 ${isPhotoFullscreen ? 'hidden' : 'flex'}`}>
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
                     <ImageIcon className="h-4 w-4 text-teal-600" />
@@ -2820,6 +2898,9 @@ export default function PatientModal({
                       onClick={() => {
                         setViewingPhoto(null);
                         setIsEditingPhotoDetails(false);
+                        setPhotoZoom(1);
+                        setIsPhotoFullscreen(false);
+                        photoControls.set({ x: 0, y: 0, scale: 1 });
                       }}
                       className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
                     >

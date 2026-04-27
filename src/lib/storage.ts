@@ -713,6 +713,63 @@ export async function resetCollection(collectionName: string): Promise<void> {
   }
 }
 
+export async function exportGlobalBackup(): Promise<string> {
+  try {
+    const backup: any = {
+      version: '2.0',
+      timestamp: new Date().toISOString(),
+      data: {}
+    };
+
+    const collections = ['pacientes', 'agenda', 'financeiro_geral', 'livro_caixa', 'configuracoes'];
+    
+    for (const col of collections) {
+      const snapshot = await getDocs(collection(db, col));
+      backup.data[col] = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      }));
+    }
+
+    return JSON.stringify(backup, null, 2);
+  } catch (error) {
+    console.error("Erro ao gerar backup global:", error);
+    throw error;
+  }
+}
+
+export async function importGlobalBackup(jsonData: string): Promise<{ success: boolean, stats: any }> {
+  try {
+    const backup = JSON.parse(jsonData);
+    if (!backup.data || typeof backup.data !== 'object') {
+      throw new Error("Formato de backup inválido.");
+    }
+
+    const stats: any = {};
+    const { setDoc } = await import('firebase/firestore');
+
+    for (const col in backup.data) {
+      const items = backup.data[col];
+      if (!Array.isArray(items)) continue;
+
+      stats[col] = items.length;
+      
+      for (const item of items) {
+        const { id, ...data } = item;
+        if (!id) continue;
+        
+        const docRef = doc(db, col, id);
+        await setDoc(docRef, data);
+      }
+    }
+
+    return { success: true, stats };
+  } catch (error) {
+    console.error("Erro ao importar backup global:", error);
+    throw error;
+  }
+}
+
 export async function clearPatientClinicalData(area: 'all' | 'financial' | 'clinical'): Promise<void> {
   try {
     const querySnapshot = await getDocs(collection(db, 'pacientes'));

@@ -49,49 +49,44 @@ export default function PatientList({
     reader.onload = async (event) => {
       try {
         const importedData = JSON.parse(event.target?.result as string);
+        
+        // Se for o novo formato de backup global (versão 2.0), avisar o usuário
+        if (importedData.version === '2.0' && importedData.data?.pacientes) {
+          if (window.confirm("Este arquivo parece ser um backup COMPLETO do sistema. Deseja ser levado para a aba de Configurações para restaurar TUDO (incluindo Agenda e Financeiro)?")) {
+            // No easy way to switch tabs from here without passing a prop, but we can't easily do that now.
+            // So we'll just tell them.
+            alert("Vá em 'Configurações' para restaurar este backup completo.");
+            return;
+          }
+        }
+
         if (Array.isArray(importedData)) {
-          // Merge imported data with existing data
-          const existingPatients = await getPatients();
-          const mergedPatients = [...existingPatients];
+          if (!window.confirm(`Você está prestes a importar ${importedData.length} pacientes. Isso irá atualizar registros existentes e adicionar novos. Deseja continuar?`)) return;
+
+          const { setDoc, doc } = await import('firebase/firestore');
+          const { db } = await import('../lib/firebase');
           
           let added = 0;
           let updated = 0;
 
-          importedData.forEach((importedPatient: Patient) => {
-            const existingIndex = mergedPatients.findIndex(p => p.id === importedPatient.id);
-            if (existingIndex >= 0) {
-              // Merge arrays safely for backward compatibility
-              mergedPatients[existingIndex] = {
-                ...importedPatient,
-                historico_clinico: importedPatient.historico_clinico || mergedPatients[existingIndex].historico_clinico || [],
-                prescriptions: importedPatient.prescriptions || mergedPatients[existingIndex].prescriptions || [],
-                examRequests: importedPatient.examRequests || mergedPatients[existingIndex].examRequests || [],
-                certificates: importedPatient.certificates || mergedPatients[existingIndex].certificates || [],
-                financeiro: importedPatient.financeiro || mergedPatients[existingIndex].financeiro || [],
-              };
-              updated++;
-            } else {
-              // Ensure new patients have the arrays even if from old backup
-              mergedPatients.push({
-                ...importedPatient,
-                historico_clinico: importedPatient.historico_clinico || [],
-                prescriptions: importedPatient.prescriptions || [],
-                examRequests: importedPatient.examRequests || [],
-                certificates: importedPatient.certificates || [],
-                financeiro: importedPatient.financeiro || [],
-              });
-              added++;
+          // Process records for Firestore
+          for (const importedPatient of importedData) {
+            const existingIndex = patients.findIndex(p => p.id === importedPatient.id);
+            const { id, ...patientData } = importedPatient;
+            
+            if (id) {
+              await setDoc(doc(db, 'pacientes', id), patientData);
+              if (existingIndex >= 0) updated++; else added++;
             }
-          });
+          }
 
-          localStorage.setItem('@medicad:patients', JSON.stringify(mergedPatients));
           onRefresh();
-          alert(`Backup restaurado com sucesso!\n\n${added} novos pacientes adicionados.\n${updated} pacientes atualizados.`);
+          alert(`Importação concluída!\n\n${added} novos pacientes adicionados.\n${updated} pacientes atualizados.`);
         } else {
-          alert('Arquivo de backup inválido. Certifique-se de usar o arquivo .json gerado pelo sistema.');
+          alert('Arquivo de backup inválido. Para backups completos (v2.0), use a aba de Configurações.');
         }
       } catch (error) {
-        alert('Erro ao ler o arquivo de backup. O arquivo pode estar corrompido.');
+        alert('Erro ao processar importação. Verifique o arquivo.');
       }
     };
     reader.readAsText(file);
