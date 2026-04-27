@@ -1,7 +1,28 @@
-export const compressImage = (file: File, maxWidth: number = 700, targetKb: number = 80): Promise<string> => {
+import heic2any from 'heic2any';
+
+export const compressImage = async (file: File, maxWidth: number = 700, targetKb: number = 80): Promise<string> => {
+  let fileToProcess: File | Blob = file;
+
+  // Handle HEIC/HEIF files
+  const isHeic = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif';
+
+  if (isHeic) {
+    try {
+      const convertedBlob = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: 0.8
+      });
+      fileToProcess = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+    } catch (error) {
+      console.error('Erro ao converter HEIC:', error);
+      // Fallback to original file, though it will likely fail in the next step if not supported
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(fileToProcess);
     reader.onload = (event) => {
       const img = new Image();
       img.src = event.target?.result as string;
@@ -56,8 +77,14 @@ export const compressImage = (file: File, maxWidth: number = 700, targetKb: numb
 
         resolve(dataUrl);
       };
-      img.onerror = (error) => reject(error);
+      img.onerror = (event) => {
+        console.error('Image loading error:', event);
+        reject(new Error('Erro ao carregar imagem para compressão'));
+      };
     };
-    reader.onerror = (error) => reject(error);
+    reader.onerror = (error) => {
+      console.error('File reading error:', error);
+      reject(new Error('Erro ao ler arquivo: ' + (error.target?.error?.message || 'Erro desconhecido')));
+    };
   });
 };
