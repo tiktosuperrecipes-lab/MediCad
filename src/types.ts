@@ -119,6 +119,17 @@ export interface ExpenseRecord {
   createdAt: string;
 }
 
+export interface MaintenanceRecord {
+  id: string;
+  title: string;
+  lastDate: string;
+  nextDate?: string;
+  frequencyMonths?: number;
+  notes?: string;
+  status: 'Em dia' | 'Vencendo' | 'Atrasado';
+  createdAt: string;
+}
+
 export interface Patient {
   id: string;
   // Personal

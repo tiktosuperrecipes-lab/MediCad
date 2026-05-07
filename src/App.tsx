@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, Users, UserPlus, Settings as SettingsIcon, DollarSign, Calendar, MessageSquare } from 'lucide-react';
+import { Activity, Users, UserPlus, Settings as SettingsIcon, DollarSign, Calendar, MessageSquare, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import PatientForm from './components/PatientForm';
 import PatientList from './components/PatientList';
@@ -7,6 +7,7 @@ import Settings from './components/Settings';
 import FinancialDashboard from './components/FinancialDashboard';
 import Agenda from './components/Agenda';
 import ReturnsList from './components/ReturnsList';
+import MaintenanceReminders from './components/MaintenanceReminders';
 import Login from './components/Login';
 import PasswordLock from './components/PasswordLock';
 import { Patient } from './types';
@@ -15,7 +16,7 @@ import { getSettings, ClinicSettings } from './lib/settings';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'form' | 'list' | 'settings' | 'financial' | 'agenda' | 'returns'>('agenda');
+  const [activeTab, setActiveTab] = useState<'form' | 'list' | 'settings' | 'financial' | 'agenda' | 'returns' | 'maintenance'>('agenda');
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [clinicSettings, setClinicSettings] = useState<ClinicSettings | null>(null);
@@ -42,7 +43,7 @@ export default function App() {
     return <Login onLogin={() => setIsAuthenticated(true)} />;
   }
 
-  const handleTabChange = (tab: 'form' | 'list' | 'settings' | 'financial' | 'agenda' | 'returns') => {
+  const handleTabChange = (tab: 'form' | 'list' | 'settings' | 'financial' | 'agenda' | 'returns' | 'maintenance') => {
     setActiveTab(tab);
     if (tab !== 'form') {
       setEditingPatient(null);
@@ -120,6 +121,15 @@ export default function App() {
                 <span>Retornos</span>
               </button>
               <button
+                onClick={() => handleTabChange('maintenance')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                  activeTab === 'maintenance' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
+                }`}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                <span>Vigilância</span>
+              </button>
+              <button
                 onClick={() => handleTabChange('financial')}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === 'financial' ? 'bg-teal-800 text-white' : 'text-teal-100 hover:bg-teal-600'
@@ -186,6 +196,15 @@ export default function App() {
           <span className="text-[10px] font-bold">Financeiro</span>
         </button>
         <button
+          onClick={() => handleTabChange('maintenance')}
+          className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 ${
+            activeTab === 'maintenance' ? 'text-teal-700 bg-teal-50' : 'text-slate-400'
+          }`}
+        >
+          <ShieldCheck className="h-5 w-5" />
+          <span className="text-[10px] font-bold">Vigilância</span>
+        </button>
+        <button
           onClick={() => handleTabChange('settings')}
           className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 ${
             activeTab === 'settings' ? 'text-teal-700 bg-teal-50' : 'text-slate-400'
@@ -239,6 +258,11 @@ export default function App() {
           {activeTab === 'returns' && (
             <motion.div key="returns" variants={pageVariants} initial="initial" animate="animate" exit="exit">
               <ReturnsList patients={patients} clinicSettings={clinicSettings} />
+            </motion.div>
+          )}
+          {activeTab === 'maintenance' && (
+            <motion.div key="maintenance" variants={pageVariants} initial="initial" animate="animate" exit="exit">
+              <MaintenanceReminders />
             </motion.div>
           )}
           {activeTab === 'financial' && (

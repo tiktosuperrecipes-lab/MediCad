@@ -1,6 +1,6 @@
 import { collection, addDoc, doc, updateDoc, deleteDoc, getDocs, arrayUnion, arrayRemove, query, where, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
-import { Patient, Appointment, GlobalFinancialRecord, ExpenseRecord, PatientLink } from '../types';
+import { Patient, Appointment, GlobalFinancialRecord, ExpenseRecord, PatientLink, MaintenanceRecord } from '../types';
 
 const STORAGE_KEY = '@medicad:patients';
 
@@ -766,6 +766,42 @@ export async function importGlobalBackup(jsonData: string): Promise<{ success: b
     return { success: true, stats };
   } catch (error) {
     console.error("Erro ao importar backup global:", error);
+    throw error;
+  }
+}
+
+export async function getMaintenanceRecords(): Promise<MaintenanceRecord[]> {
+  try {
+    const snapshot = await getDocs(collection(db, 'manutencao'));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MaintenanceRecord));
+  } catch (error) {
+    console.error("Error fetching maintenance records:", error);
+    return [];
+  }
+}
+
+export async function saveMaintenanceRecord(record: Omit<MaintenanceRecord, 'id'> & { id?: string }): Promise<void> {
+  try {
+    if (record.id) {
+      const docRef = doc(db, 'manutencao', record.id);
+      await updateDoc(docRef, record);
+    } else {
+      await addDoc(collection(db, 'manutencao'), {
+        ...record,
+        createdAt: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error("Error saving maintenance record:", error);
+    throw error;
+  }
+}
+
+export async function deleteMaintenanceRecord(id: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, 'manutencao', id));
+  } catch (error) {
+    console.error("Error deleting maintenance record:", error);
     throw error;
   }
 }
