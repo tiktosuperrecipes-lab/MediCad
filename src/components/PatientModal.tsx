@@ -9,6 +9,27 @@ import { formatCPF } from '../lib/formatters';
 import { compressImage } from '../lib/imageUtils';
 import Odontogram from './Odontogram';
 
+const calculatePatientAge = (birthDateStr: string | undefined): string => {
+  if (!birthDateStr) return '';
+  const cleanDate = birthDateStr.includes('T') ? birthDateStr.split('T')[0] : birthDateStr;
+  const [year, month, day] = cleanDate.split('-').map(Number);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return '';
+  
+  const today = new Date();
+  const birthDate = new Date(year, month - 1, day);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age >= 0 ? `${age} anos` : '';
+};
+
+const getPatientGenderLabel = (gender: string | undefined): string => {
+  if (!gender || gender === 'Prefere não informar') return '';
+  return gender;
+};
+
 export default function PatientModal({ 
   patient, 
   onClose,
@@ -3375,6 +3396,10 @@ export default function PatientModal({
               {/* Informacoes Paciente */}
               <div className="space-y-1 text-[12px] border-b border-slate-200 pb-2 mb-3">
                 <p><strong>Paciente:</strong> <span className="font-bold text-slate-900 text-[13px]">{patient.fullName}</span></p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 my-1">
+                  <p><strong>Idade:</strong> <span className="text-slate-800 font-semibold">{calculatePatientAge(patient.birthDate) || '_____________________'}</span></p>
+                  <p><strong>Sexo:</strong> <span className="text-slate-800 font-semibold">{getPatientGenderLabel(patient.gender) || '_____________________'}</span></p>
+                </div>
                 <p><strong>Endereço:</strong> <span className="text-slate-800">{[patient.street, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(', ') || 'Não informado'}</span></p>
                 <p><strong>Data:</strong> <span className="font-semibold text-slate-900">{formatDateShort(getLocalDateString())}</span></p>
               </div>
@@ -3458,6 +3483,10 @@ export default function PatientModal({
               {/* Informacoes Paciente */}
               <div className="space-y-1 text-[12px] border-b border-slate-200 pb-2 mb-3">
                 <p><strong>Paciente:</strong> <span className="font-bold text-slate-900 text-[13px]">{patient.fullName}</span></p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 my-1">
+                  <p><strong>Idade:</strong> <span className="text-slate-800 font-semibold">{calculatePatientAge(patient.birthDate) || '_____________________'}</span></p>
+                  <p><strong>Sexo:</strong> <span className="text-slate-800 font-semibold">{getPatientGenderLabel(patient.gender) || '_____________________'}</span></p>
+                </div>
                 <p><strong>Endereço:</strong> <span className="text-slate-800">{[patient.street, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(', ') || 'Não informado'}</span></p>
                 <p><strong>Data:</strong> <span className="font-semibold text-slate-900">{formatDateShort(getLocalDateString())}</span></p>
               </div>
