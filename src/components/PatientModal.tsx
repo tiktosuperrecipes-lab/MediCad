@@ -3400,7 +3400,7 @@ export default function PatientModal({
                   <p><strong>Idade:</strong> <span className="text-slate-800 font-semibold">{calculatePatientAge(patient.birthDate) || '_____________________'}</span></p>
                   <p><strong>Sexo:</strong> <span className="text-slate-800 font-semibold">{getPatientGenderLabel(patient.gender) || '_____________________'}</span></p>
                 </div>
-                <p><strong>Endereço:</strong> <span className="text-slate-800">{[patient.street, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(', ') || 'Não informado'}</span></p>
+                <p><strong>Endereço:</strong> <span className="text-slate-800">{[patient.street, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(', ') || '_____________________________________________________________'}</span></p>
                 <p><strong>Data:</strong> <span className="font-semibold text-slate-900">{formatDateShort(getLocalDateString())}</span></p>
               </div>
 
@@ -3487,7 +3487,7 @@ export default function PatientModal({
                   <p><strong>Idade:</strong> <span className="text-slate-800 font-semibold">{calculatePatientAge(patient.birthDate) || '_____________________'}</span></p>
                   <p><strong>Sexo:</strong> <span className="text-slate-800 font-semibold">{getPatientGenderLabel(patient.gender) || '_____________________'}</span></p>
                 </div>
-                <p><strong>Endereço:</strong> <span className="text-slate-800">{[patient.street, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(', ') || 'Não informado'}</span></p>
+                <p><strong>Endereço:</strong> <span className="text-slate-800">{[patient.street, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(', ') || '_____________________________________________________________'}</span></p>
                 <p><strong>Data:</strong> <span className="font-semibold text-slate-900">{formatDateShort(getLocalDateString())}</span></p>
               </div>
 
