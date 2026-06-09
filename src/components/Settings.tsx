@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Building2, Trash2, ShieldAlert, Lock, AlertTriangle, DollarSign, Plus, List, Edit3, Download, Upload, Database } from 'lucide-react';
+import { Save, Building2, Trash2, ShieldAlert, Lock, AlertTriangle, DollarSign, Plus, List, Edit3, Download, Upload, Database, Image, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ClinicSettings, getSettings, saveSettings } from '../lib/settings';
 import { resetCollection, clearPatientClinicalData, exportGlobalBackup, importGlobalBackup } from '../lib/storage';
@@ -17,7 +17,9 @@ export default function Settings({ onSave }: SettingsProps) {
     crm: '',
     cpf: '',
     agendaStartTime: '08:00',
-    agendaEndTime: '18:00'
+    agendaEndTime: '18:00',
+    useLogo: false,
+    logoBase64: ''
   });
   const [saved, setSaved] = useState(false);
   const [showResetMenu, setShowResetMenu] = useState(false);
@@ -26,6 +28,7 @@ export default function Settings({ onSave }: SettingsProps) {
   const [resetStatus, setResetStatus] = useState<{type: string, success: boolean} | null>(null);
   const [backupLoading, setBackupLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [newProcedure, setNewProcedure] = useState({ name: '', description: '', basePrice: 0 });
   const [newCardFee, setNewCardFee] = useState({ installments: 1, percentage: 0 });
 
@@ -36,6 +39,36 @@ export default function Settings({ onSave }: SettingsProps) {
     };
     loadSettings();
   }, []);
+
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("O arquivo de logotipo é muito grande. Escolha uma imagem de até 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target?.result as string;
+      setSettings(prev => ({
+        ...prev,
+        logoBase64: base64String
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setSettings(prev => ({
+      ...prev,
+      logoBase64: ''
+    }));
+    if (logoInputRef.current) {
+      logoInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,6 +230,68 @@ export default function Settings({ onSave }: SettingsProps) {
                 placeholder="Ex: Clínica Saúde Integral"
                 required
               />
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-800 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={settings.useLogo || false}
+                      onChange={(e) => setSettings({...settings, useLogo: e.target.checked})}
+                      className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 h-4 w-4"
+                    />
+                    Usar Logotipo da Clínica no Cabeçalho (Impressões)
+                  </label>
+                  <p className="text-xs text-slate-500 pl-6">
+                    Quando ativado, os atestados, receitas e orçamentos exibirão a imagem do logotipo em vez do nome em texto puro no cabeçalho.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 pl-6 space-y-3">
+                <label className="block text-xs font-bold text-slate-600 uppercase">Logotipo da Clínica</label>
+                
+                {settings.logoBase64 ? (
+                  <div className="flex items-start gap-4 p-3 bg-white border border-slate-200 rounded-lg max-w-md">
+                    <div className="flex-1 border border-slate-100 rounded p-2 bg-slate-50/50 flex justify-center items-center">
+                      <img 
+                        src={settings.logoBase64} 
+                        alt="Logotipo Clínico" 
+                        className="max-h-16 max-w-full object-contain"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      className="p-1 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Remover
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="file"
+                      ref={logoInputRef}
+                      onChange={handleLogoFileChange}
+                      accept="image/*"
+                      className="hidden"
+                      id="clinic-logo-upload"
+                    />
+                    <label
+                      htmlFor="clinic-logo-upload"
+                      className="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg shadow-sm cursor-pointer transition-colors"
+                    >
+                      <Image className="h-4 w-4 text-slate-500" />
+                      Escolher Imagem do Logotipo
+                    </label>
+                    <p className="text-[10px] text-slate-400 mt-1">Recomendado: Imagem PNG ou JPG de tamanho horizontal (ex. 600x200px) de até 2MB.</p>
+                  </div>
+                )}
+              </div>
             </div>
             
             <div>
