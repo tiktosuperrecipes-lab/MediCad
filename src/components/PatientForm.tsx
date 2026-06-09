@@ -20,6 +20,7 @@ const initialFormState: Omit<Patient, 'id' | 'createdAt'> = {
   city: '',
   state: '',
   bloodType: '',
+  comorbidities: '',
   hasAllergies: false,
   allergiesDetails: '',
   hasMedication: false,
@@ -335,6 +336,18 @@ export default function PatientForm({ onSuccess, initialData }: { onSuccess: () 
                 <option value="O+">O+</option>
                 <option value="O-">O-</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Comorbidades</label>
+              <input
+                type="text"
+                name="comorbidities"
+                value={formData.comorbidities || ''}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+                placeholder="Ex: Diabetes, Hipertensão..."
+              />
             </div>
             
             <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">

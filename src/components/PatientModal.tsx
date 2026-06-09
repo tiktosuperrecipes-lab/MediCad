@@ -45,6 +45,7 @@ export default function PatientModal({
     qp: patient.qp || '',
     hma: patient.hma || '',
     hpp: patient.hpp || '',
+    comorbidities: patient.comorbidities || '',
     physicalExam: patient.physicalExam || ''
   });
 
@@ -1089,6 +1090,10 @@ export default function PatientModal({
                     <p className="text-sm text-slate-500 mb-1">Tipo Sanguíneo</p>
                     <p className="font-medium text-slate-900">{patient.bloodType || '-'}</p>
                   </div>
+                  <div>
+                    <p className="text-sm text-slate-500 mb-1">Comorbidades</p>
+                    <p className="font-medium text-slate-900">{patient.comorbidities || '-'}</p>
+                  </div>
                   <div className="sm:col-span-2">
                     <p className="text-sm text-slate-500 mb-1">Alergias</p>
                     <p className="font-medium text-slate-900">
@@ -1123,12 +1128,22 @@ export default function PatientModal({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">História Patológica Pregressa (HPP / Comorbidades)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">História Patológica Pregressa (HPP)</label>
                     <textarea
                       value={anamnesisForm.hpp}
                       onChange={(e) => setAnamnesisForm({...anamnesisForm, hpp: e.target.value})}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none h-24 resize-none print:border-none print:p-0 print:resize-none"
                       placeholder="Doenças prévias, cirurgias, histórico familiar..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Comorbidades (Resumo)</label>
+                    <input
+                      type="text"
+                      value={anamnesisForm.comorbidities}
+                      onChange={(e) => setAnamnesisForm({...anamnesisForm, comorbidities: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none print:border-none print:p-0"
+                      placeholder="Ex: Diabetes, Hipertensão..."
                     />
                   </div>
                   <div>

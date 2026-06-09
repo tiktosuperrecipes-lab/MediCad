@@ -148,6 +148,7 @@ export interface Patient {
   state: string;
   // Clinical
   bloodType: string;
+  comorbidities?: string;
   hasAllergies: boolean;
   allergiesDetails: string;
   hasMedication: boolean;
