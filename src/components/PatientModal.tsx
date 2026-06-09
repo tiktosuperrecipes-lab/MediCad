@@ -52,6 +52,98 @@ export default function PatientModal({
   // Prescription State
   const [medications, setMedications] = useState<Medication[]>([]);
   const [currentMed, setCurrentMed] = useState({ name: '', posology: '' });
+  const [prescriptionPresets, setPrescriptionPresets] = useState<{ name: string; posology: string }[]>([]);
+
+  useEffect(() => {
+    const defaultPresets = [
+      { name: 'Amoxicilina 500mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 7 dias' },
+      { name: 'Nimesulida 100mg', posology: 'Tomar 1 comprimido de 12 em 12 horas por 3 a 5 dias (após as refeições)' },
+      { name: 'Dipirona Sódica 500mg', posology: 'Tomar 1 comprimido de 6 em 6 horas em caso de dor ou febre (máx. 4x ao dia)' },
+      { name: 'Paracetamol 750mg', posology: 'Tomar 1 comprimido de 6 em 6 horas em caso de dor ou febre' },
+      { name: 'Ibuprofeno 600mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 3 a 5 dias em caso de dor ou inflamação' },
+      { name: 'Dexametasona 4mg', posology: 'Tomar 1 comprimido pela manhã por 3 dias' },
+      { name: 'Amoxicilina 500mg + Clavulanato 125mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 7 a 10 dias' }
+    ];
+
+    const saved = localStorage.getItem('@medicad:prescription-presets');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setPrescriptionPresets([...defaultPresets, ...parsed]);
+      } catch (e) {
+        setPrescriptionPresets(defaultPresets);
+      }
+    } else {
+      setPrescriptionPresets(defaultPresets);
+    }
+  }, []);
+
+  const handleSaveAsPreset = () => {
+    if (!currentMed.name.trim() || !currentMed.posology.trim()) {
+      alert("Preencha o nome do medicamento e a posologia para salvar o modelo.");
+      return;
+    }
+
+    const isExisting = prescriptionPresets.some(
+      p => p.name.trim().toLowerCase() === currentMed.name.trim().toLowerCase()
+    );
+
+    if (isExisting) {
+      alert("Já existe um modelo com este nome de medicamento.");
+      return;
+    }
+
+    const saved = localStorage.getItem('@medicad:prescription-presets');
+    let customList: { name: string; posology: string }[] = [];
+    if (saved) {
+      try {
+        customList = JSON.parse(saved);
+      } catch (e) {}
+    }
+
+    const newPreset = { name: currentMed.name.trim(), posology: currentMed.posology.trim() };
+    customList.push(newPreset);
+    localStorage.setItem('@medicad:prescription-presets', JSON.stringify(customList));
+    
+    const defaultPresets = [
+      { name: 'Amoxicilina 500mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 7 dias' },
+      { name: 'Nimesulida 100mg', posology: 'Tomar 1 comprimido de 12 em 12 horas por 3 a 5 dias (após as refeições)' },
+      { name: 'Dipirona Sódica 500mg', posology: 'Tomar 1 comprimido de 6 em 6 horas em caso de dor ou febre (máx. 4x ao dia)' },
+      { name: 'Paracetamol 750mg', posology: 'Tomar 1 comprimido de 6 em 6 horas em caso de dor ou febre' },
+      { name: 'Ibuprofeno 600mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 3 a 5 dias em caso de dor ou inflamação' },
+      { name: 'Dexametasona 4mg', posology: 'Tomar 1 comprimido pela manhã por 3 dias' },
+      { name: 'Amoxicilina 500mg + Clavulanato 125mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 7 a 10 dias' }
+    ];
+    setPrescriptionPresets([...defaultPresets, ...customList]);
+    alert("Prescrição salva como modelo com sucesso!");
+  };
+
+  const handleDeletePreset = (nameToDelete: string) => {
+    if (!window.confirm(`Deseja remover o modelo "${nameToDelete}"?`)) return;
+
+    const saved = localStorage.getItem('@medicad:prescription-presets');
+    let customList: { name: string; posology: string }[] = [];
+    if (saved) {
+      try {
+        customList = JSON.parse(saved);
+      } catch (e) {}
+    }
+
+    const filtered = customList.filter(p => p.name !== nameToDelete);
+    localStorage.setItem('@medicad:prescription-presets', JSON.stringify(filtered));
+
+    const defaultPresets = [
+      { name: 'Amoxicilina 500mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 7 dias' },
+      { name: 'Nimesulida 100mg', posology: 'Tomar 1 comprimido de 12 em 12 horas por 3 a 5 dias (após as refeições)' },
+      { name: 'Dipirona Sódica 500mg', posology: 'Tomar 1 comprimido de 6 em 6 horas em caso de dor ou febre (máx. 4x ao dia)' },
+      { name: 'Paracetamol 750mg', posology: 'Tomar 1 comprimido de 6 em 6 horas em caso de dor ou febre' },
+      { name: 'Ibuprofeno 600mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 3 a 5 dias em caso de dor ou inflamação' },
+      { name: 'Dexametasona 4mg', posology: 'Tomar 1 comprimido pela manhã por 3 dias' },
+      { name: 'Amoxicilina 500mg + Clavulanato 125mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 7 a 10 dias' }
+    ];
+    setPrescriptionPresets([...defaultPresets, ...filtered]);
+  };
+
   const [examRequestText, setExamRequestText] = useState('');
 
   // Certificate State
@@ -1591,7 +1683,49 @@ export default function PatientModal({
               </div>
 
               <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 mb-6 print:hidden">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                {/* Acesso Rápido de Modelos */}
+                {prescriptionPresets.length > 0 && (
+                  <div className="mb-4">
+                    <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Modelos Rápidos (Clique para selecionar)</span>
+                    <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto pr-1">
+                      {prescriptionPresets.map((preset, index) => {
+                        const isDefault = [
+                          'Amoxicilina 500mg',
+                          'Nimesulida 100mg',
+                          'Dipirona Sódica 500mg',
+                          'Paracetamol 750mg',
+                          'Ibuprofeno 600mg',
+                          'Dexametasona 4mg',
+                          'Amoxicilina 500mg + Clavulanato 125mg'
+                        ].includes(preset.name);
+                        return (
+                          <div 
+                            key={index}
+                            onClick={() => setCurrentMed({ name: preset.name, posology: preset.posology })}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-teal-50 border border-slate-200 hover:border-teal-350 text-slate-700 hover:text-teal-800 rounded-lg text-xs font-medium cursor-pointer transition-all shadow-sm select-none animate-fade-in"
+                          >
+                            <Pill className="h-3.5 w-3.5 text-teal-600" />
+                            <span>{preset.name}</span>
+                            {!isDefault && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeletePreset(preset.name);
+                                }}
+                                className="ml-1 p-0.5 rounded hover:bg-rose-100 text-slate-400 hover:text-rose-600 transition-colors"
+                                title="Remover modelo personalizado"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end pt-3 border-t border-slate-200/60">
                   <div className="md:col-span-1">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Medicamento</label>
                     <input
@@ -1602,25 +1736,35 @@ export default function PatientModal({
                       placeholder="Ex: Amoxicilina 500mg"
                     />
                   </div>
-                  <div className="md:col-span-2 flex gap-2">
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Posologia</label>
-                      <input
-                        type="text"
-                        value={currentMed.posology}
-                        onChange={(e) => setCurrentMed({...currentMed, posology: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                        placeholder="Ex: Tomar 1 comprimido de 8 em 8 horas por 7 dias"
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddMedication()}
-                      />
-                    </div>
-                    <button 
-                      onClick={handleAddMedication}
-                      className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-lg transition-colors h-[42px]"
-                    >
-                      Adicionar
-                    </button>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Posologia</label>
+                    <input
+                      type="text"
+                      value={currentMed.posology}
+                      onChange={(e) => setCurrentMed({...currentMed, posology: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                      placeholder="Ex: Tomar 1 comprimido de 8 em 8 horas por 7 dias"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddMedication()}
+                    />
                   </div>
+                </div>
+
+                <div className="flex flex-wrap justify-end gap-2 mt-4 pt-3 border-t border-slate-200/60">
+                  <button 
+                    onClick={handleSaveAsPreset}
+                    className="px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg border border-slate-200 shadow-sm transition-all flex items-center gap-1.5"
+                    title="Salvar o nome do medicamento e posologia atuais como modelo rápido para receitas futuras"
+                  >
+                    <Plus className="h-4 w-4 text-slate-500" />
+                    Salvar como Modelo
+                  </button>
+                  <button 
+                    onClick={handleAddMedication}
+                    className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+                  >
+                    <Check className="h-4 w-4" />
+                    Adicionar à Receita
+                  </button>
                 </div>
               </div>
 
