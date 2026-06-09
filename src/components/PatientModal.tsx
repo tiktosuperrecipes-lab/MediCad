@@ -875,7 +875,9 @@ export default function PatientModal({
           damping: 45,
           layout: { duration: 0.15, type: "spring", stiffness: 600, damping: 40 }
         }}
-        className="bg-white rounded-none sm:rounded-2xl shadow-xl w-full h-full sm:h-auto max-w-5xl sm:max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible flex flex-col"
+        className={`bg-white rounded-none sm:rounded-2xl shadow-xl w-full h-full sm:h-auto max-w-5xl sm:max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible flex flex-col ${
+          printMode === 'prescription' && isSpecialControl ? 'print:hidden' : ''
+        }`}
       >
         
         <div className="sticky top-0 z-30 bg-white border-b border-slate-200">
@@ -3293,84 +3295,98 @@ export default function PatientModal({
 
       {/* Special Control Prescription Print Layout (Only visible during print when isSpecialControl is checked) */}
       {printMode === 'prescription' && isSpecialControl && (
-        <div className="hidden print:flex fixed inset-0 bg-white z-[9999] flex-row gap-6 p-4 w-full h-full text-slate-900 overflow-hidden font-sans" style={{ minWidth: '100%', minHeight: '100%' }}>
+        <div className="hidden print:flex special-prescription-print-wrapper text-slate-900 font-sans bg-white">
           <style dangerouslySetInnerHTML={{__html: `
             @media print {
               @page {
                 size: landscape !important;
-                margin: 6mm !important;
+                margin: 4mm 5mm 4mm 5mm !important;
               }
-              body {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
+              body, html {
+                background: white !important;
+                color: black !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+              }
+              .special-prescription-print-wrapper {
+                display: flex !important;
+                flex-direction: row !important;
+                gap: 12px !important;
+                width: 100% !important;
+                height: 196mm !important;
+                box-sizing: border-box !important;
+                padding: 0 !important;
                 background: white !important;
               }
               .special-prescription-copy {
-                width: 48% !important;
+                width: 49% !important;
                 height: 100% !important;
-                border: 2px solid #0f172a !important;
-                padding: 16px !important;
+                border: 2px solid #000000 !important;
+                padding: 12px 14px !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: space-between !important;
                 box-sizing: border-box !important;
                 border-radius: 8px !important;
+                background: white !important;
               }
             }
           `}} />
           
-          {/* Copy 1: 1ª Via */}
-          <div className="special-prescription-copy flex-1 flex flex-col justify-between border-2 border-slate-900 p-4 rounded-lg bg-white h-full box-border">
+          {/* Copy 1: 1ª Via (Farmácia) */}
+          <div className="special-prescription-copy">
             <div>
               {/* Cabecalho emitente */}
-              <div className="flex items-center justify-between border-b border-slate-300 pb-2 mb-2">
+              <div className="flex items-center justify-between border-b border-slate-350 pb-1.5 mb-2">
                 <div className="flex items-center gap-2">
                   {settings?.useLogo && settings?.logoBase64 ? (
-                    <img src={settings.logoBase64} className="h-10 object-contain" alt="Logo" />
+                    <img src={settings.logoBase64} className="h-9 object-contain" alt="Logo" />
                   ) : (
                     <span className="font-bold text-sm text-teal-800 uppercase">{settings?.name || 'Clínica'}</span>
                   )}
                 </div>
                 <div className="text-right">
-                  <h2 className="text-[10px] font-bold tracking-tight text-slate-900 uppercase">RECEITUÁRIO DE CONTROLE ESPECIAL</h2>
+                  <h2 className="text-[9px] font-black tracking-tight text-slate-900 uppercase">RECEITUÁRIO DE CONTROLE ESPECIAL</h2>
                 </div>
               </div>
-
+              
               {/* Box Emitente e Vias */}
-              <div className="grid grid-cols-2 gap-2 text-[9px] border border-slate-400 p-2 rounded mb-3">
+              <div className="grid grid-cols-2 gap-2 text-[8.5px] border border-slate-400 p-2 rounded mb-2">
                 <div className="border-r border-slate-300 pr-2 space-y-0.5">
-                  <p className="font-bold uppercase text-[8px] text-slate-500">IDENTIFICAÇÃO DO EMITENTE</p>
-                  <p className="font-bold">{settings?.doctorName || 'Dra. Virgínia Aragão'}</p>
+                  <p className="font-bold uppercase text-[7.5px] text-slate-500">IDENTIFICAÇÃO DO EMITENTE</p>
+                  <p className="font-bold text-slate-800">{settings?.doctorName || 'Dra. Virgínia Aragão'}</p>
                   <p><strong>CRO/CRM:</strong> {settings?.crm || 'CRO-CE 2793'}</p>
                   <p><strong>END:</strong> {settings?.address}</p>
                   <p><strong>TEL:</strong> {settings?.phone}</p>
                 </div>
                 <div className="pl-2 flex flex-col justify-between">
-                  <div className="text-[9px] text-slate-700 space-y-0.5 font-semibold">
-                    <p>1ª Via - Retenção da Farmácia ou Drogaria</p>
+                  <div className="text-[8.5px] text-slate-700 space-y-0.5 font-semibold">
+                    <p className="font-bold text-slate-900">1ª Via - Retenção da Farmácia ou Drogaria</p>
                     <p className="text-slate-400">2ª Via - Orientação ao Paciente</p>
                   </div>
-                  <div className="border-t border-dashed border-slate-300 pt-1 text-center font-bold text-[7px] text-slate-500 uppercase mt-2">
+                  <div className="border-t border-dashed border-slate-300 pt-1 text-center font-bold text-[6.5px] text-slate-500 uppercase mt-1">
                     Assinatura e Carimbo do Profissional
                   </div>
                 </div>
               </div>
 
               {/* Informacoes Paciente */}
-              <div className="space-y-1 text-xs border-b border-slate-200 pb-2 mb-2">
-                <p><strong>Paciente:</strong> {patient.fullName}</p>
+              <div className="space-y-0.5 text-[10.5px] border-b border-slate-200 pb-1.5 mb-2">
+                <p><strong>Paciente:</strong> <span className="font-semibold text-slate-800">{patient.fullName}</span></p>
                 <p><strong>Endereço:</strong> {[patient.street, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(', ') || 'Não informado'}</p>
                 <p><strong>Data:</strong> {formatDateShort(getLocalDateString())}</p>
               </div>
 
               {/* Medicacoes */}
-              <div className="space-y-3 mt-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-800">Prescrição:</p>
+              <div className="space-y-1.5 mt-2">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Prescrição:</p>
                 <div className="space-y-2 pl-1">
                   {medications.map((med, index) => (
-                    <div key={med.id} className="text-xs">
-                      <p className="font-bold">{index + 1}. {med.name}</p>
-                      <p className="text-slate-600 pl-3">Uso: {med.posology}</p>
+                    <div key={med.id} className="text-[11px] leading-tight">
+                      <p className="font-bold text-slate-800">{index + 1}. {med.name}</p>
+                      <p className="text-slate-650 pl-3">Uso: {med.posology}</p>
                     </div>
                   ))}
                 </div>
@@ -3378,22 +3394,22 @@ export default function PatientModal({
             </div>
 
             {/* Comprador / Fornecedor Rodape */}
-            <div className="space-y-2 pt-2 border-t border-slate-300">
-              <div className="grid grid-cols-2 gap-2 text-[8px] leading-tight mt-auto">
+            <div className="space-y-2 pt-2 border-t border-slate-300 mt-auto">
+              <div className="grid grid-cols-2 gap-2 text-[8px] leading-tight">
                 <div className="border border-slate-300 p-2 rounded space-y-1 bg-slate-50/50">
-                  <p className="font-bold uppercase text-slate-600 text-[7px] border-b border-slate-200 pb-0.5">IDENTIFICAÇÃO DO COMPRADOR</p>
-                  <p>Nome: _____________________________________________</p>
-                  <p>RG: _________________ Org. Emissor: _______</p>
-                  <p>End: ______________________________________________</p>
-                  <p>Cidade: _____________________ UF: ____ Fone: _______</p>
+                  <p className="font-bold uppercase text-slate-600 text-[6.5px] border-b border-slate-200 pb-0.5">IDENTIFICAÇÃO DO COMPRADOR</p>
+                  <p className="pt-0.5">Nome: __________________________________________</p>
+                  <p>RG: ________________ Org. Emissor: _____</p>
+                  <p>End: ___________________________________________</p>
+                  <p>Cidade: __________________ UF: __ Fone: ______</p>
                 </div>
                 <div className="border border-slate-300 p-2 rounded flex flex-col justify-between bg-slate-50/50">
                   <div>
-                    <p className="font-bold uppercase text-slate-600 text-[7px] border-b border-slate-200 pb-0.5">IDENTIFICAÇÃO DO FORNECEDOR</p>
+                    <p className="font-bold uppercase text-slate-600 text-[6.5px] border-b border-slate-200 pb-0.5">IDENTIFICAÇÃO DO FORNECEDOR</p>
                   </div>
-                  <div className="space-y-1.5 pt-1">
+                  <div className="space-y-1 pt-1">
                     <p>Assinat. Farmacêutico: _______________________</p>
-                    <div className="flex justify-between items-center text-[7px]">
+                    <div className="flex justify-between items-center text-[7px] mt-1">
                       <p>Data: ____/____/______</p>
                     </div>
                   </div>
@@ -3402,58 +3418,58 @@ export default function PatientModal({
             </div>
           </div>
 
-          {/* Copy 2: 2ª Via */}
-          <div className="special-prescription-copy flex-1 flex flex-col justify-between border-2 border-slate-900 p-4 rounded-lg bg-white h-full box-border">
+          {/* Copy 2: 2ª Via (Paciente) */}
+          <div className="special-prescription-copy">
             <div>
               {/* Cabecalho emitente */}
-              <div className="flex items-center justify-between border-b border-slate-300 pb-2 mb-2">
+              <div className="flex items-center justify-between border-b border-slate-350 pb-1.5 mb-2">
                 <div className="flex items-center gap-2">
                   {settings?.useLogo && settings?.logoBase64 ? (
-                    <img src={settings.logoBase64} className="h-10 object-contain" alt="Logo" />
+                    <img src={settings.logoBase64} className="h-9 object-contain" alt="Logo" />
                   ) : (
                     <span className="font-bold text-sm text-teal-800 uppercase">{settings?.name || 'Clínica'}</span>
                   )}
                 </div>
                 <div className="text-right">
-                  <h2 className="text-[10px] font-bold tracking-tight text-slate-900 uppercase">RECEITUÁRIO DE CONTROLE ESPECIAL</h2>
+                  <h2 className="text-[9px] font-black tracking-tight text-slate-900 uppercase">RECEITUÁRIO DE CONTROLE ESPECIAL</h2>
                 </div>
               </div>
-
+              
               {/* Box Emitente e Vias */}
-              <div className="grid grid-cols-2 gap-2 text-[9px] border border-slate-400 p-2 rounded mb-3">
+              <div className="grid grid-cols-2 gap-2 text-[8.5px] border border-slate-400 p-2 rounded mb-2">
                 <div className="border-r border-slate-300 pr-2 space-y-0.5">
-                  <p className="font-bold uppercase text-[8px] text-slate-500">IDENTIFICAÇÃO DO EMITENTE</p>
-                  <p className="font-bold">{settings?.doctorName || 'Dra. Virgínia Aragão'}</p>
+                  <p className="font-bold uppercase text-[7.5px] text-slate-500">IDENTIFICAÇÃO DO EMITENTE</p>
+                  <p className="font-bold text-slate-800">{settings?.doctorName || 'Dra. Virgínia Aragão'}</p>
                   <p><strong>CRO/CRM:</strong> {settings?.crm || 'CRO-CE 2793'}</p>
                   <p><strong>END:</strong> {settings?.address}</p>
                   <p><strong>TEL:</strong> {settings?.phone}</p>
                 </div>
                 <div className="pl-2 flex flex-col justify-between">
-                  <div className="text-[9px] text-slate-700 space-y-0.5 font-semibold">
+                  <div className="text-[8.5px] text-slate-700 space-y-0.5 font-semibold">
                     <p className="text-slate-400">1ª Via - Retenção da Farmácia ou Drogaria</p>
-                    <p>2ª Via - Orientação ao Paciente</p>
+                    <p className="font-bold text-slate-900">2ª Via - Orientação ao Paciente</p>
                   </div>
-                  <div className="border-t border-dashed border-slate-300 pt-1 text-center font-bold text-[7px] text-slate-500 uppercase mt-2">
+                  <div className="border-t border-dashed border-slate-300 pt-1 text-center font-bold text-[6.5px] text-slate-500 uppercase mt-1">
                     Assinatura e Carimbo do Profissional
                   </div>
                 </div>
               </div>
 
               {/* Informacoes Paciente */}
-              <div className="space-y-1 text-xs border-b border-slate-200 pb-2 mb-2">
-                <p><strong>Paciente:</strong> {patient.fullName}</p>
+              <div className="space-y-0.5 text-[10.5px] border-b border-slate-200 pb-1.5 mb-2">
+                <p><strong>Paciente:</strong> <span className="font-semibold text-slate-800">{patient.fullName}</span></p>
                 <p><strong>Endereço:</strong> {[patient.street, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(', ') || 'Não informado'}</p>
                 <p><strong>Data:</strong> {formatDateShort(getLocalDateString())}</p>
               </div>
 
               {/* Medicacoes */}
-              <div className="space-y-3 mt-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-800">Prescrição:</p>
+              <div className="space-y-1.5 mt-2">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Prescrição:</p>
                 <div className="space-y-2 pl-1">
                   {medications.map((med, index) => (
-                    <div key={med.id} className="text-xs">
-                      <p className="font-bold">{index + 1}. {med.name}</p>
-                      <p className="text-slate-600 pl-3">Uso: {med.posology}</p>
+                    <div key={med.id} className="text-[11px] leading-tight">
+                      <p className="font-bold text-slate-800">{index + 1}. {med.name}</p>
+                      <p className="text-slate-650 pl-3">Uso: {med.posology}</p>
                     </div>
                   ))}
                 </div>
@@ -3461,22 +3477,22 @@ export default function PatientModal({
             </div>
 
             {/* Comprador / Fornecedor Rodape */}
-            <div className="space-y-2 pt-2 border-t border-slate-300">
-              <div className="grid grid-cols-2 gap-2 text-[8px] leading-tight mt-auto">
+            <div className="space-y-2 pt-2 border-t border-slate-300 mt-auto">
+              <div className="grid grid-cols-2 gap-2 text-[8px] leading-tight">
                 <div className="border border-slate-300 p-2 rounded space-y-1 bg-slate-50/50">
-                  <p className="font-bold uppercase text-slate-600 text-[7px] border-b border-slate-200 pb-0.5">IDENTIFICAÇÃO DO COMPRADOR</p>
-                  <p>Nome: _____________________________________________</p>
-                  <p>RG: _________________ Org. Emissor: _______</p>
-                  <p>End: ______________________________________________</p>
-                  <p>Cidade: _____________________ UF: ____ Fone: _______</p>
+                  <p className="font-bold uppercase text-slate-600 text-[6.5px] border-b border-slate-200 pb-0.5">IDENTIFICAÇÃO DO COMPRADOR</p>
+                  <p className="pt-0.5">Nome: __________________________________________</p>
+                  <p>RG: ________________ Org. Emissor: _____</p>
+                  <p>End: ___________________________________________</p>
+                  <p>Cidade: __________________ UF: __ Fone: ______</p>
                 </div>
                 <div className="border border-slate-300 p-2 rounded flex flex-col justify-between bg-slate-50/50">
                   <div>
-                    <p className="font-bold uppercase text-slate-600 text-[7px] border-b border-slate-200 pb-0.5">IDENTIFICAÇÃO DO FORNECEDOR</p>
+                    <p className="font-bold uppercase text-slate-600 text-[6.5px] border-b border-slate-200 pb-0.5">IDENTIFICAÇÃO DO FORNECEDOR</p>
                   </div>
-                  <div className="space-y-1.5 pt-1">
+                  <div className="space-y-1 pt-1">
                     <p>Assinat. Farmacêutico: _______________________</p>
-                    <div className="flex justify-between items-center text-[7px]">
+                    <div className="flex justify-between items-center text-[7px] mt-1">
                       <p>Data: ____/____/______</p>
                     </div>
                   </div>
