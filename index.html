@@ -6,7 +6,62 @@
     <title>MediCad</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Tela de carregamento instantånea enquanto o código JS é baixado e executado -->
+      <div style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100vw;
+        height: 100vh;
+        background-color: #f8fafc;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        color: #1e293b;
+        margin: 0;
+        padding: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 9999;
+      ">
+        <div style="
+          width: 48px;
+          height: 48px;
+          border: 4px solid #ccfbf1;
+          border-top-color: #0f766e;
+          border-radius: 50%;
+          display: inline-block;
+          box-sizing: border-box;
+          animation: MediCadRotation 1s linear infinite;
+        "></div>
+        <h2 style="
+          margin-top: 24px;
+          font-size: 22px;
+          font-weight: 705;
+          letter-spacing: -0.025em;
+          color: #0f766e;
+          margin-bottom: 8px;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        ">MediCad</h2>
+        <p style="
+          margin: 0;
+          font-size: 14px;
+          color: #64748b;
+          font-weight: 500;
+        ">Carregando o sistema...</p>
+        <style>
+          @keyframes MediCadRotation {
+            0% {
+              transform: rotate(0deg);
+            }
+            100% {
+              transform: rotate(360deg);
+            }
+          }
+        </style>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -74,6 +74,7 @@ export default function PatientModal({
   const [medications, setMedications] = useState<Medication[]>([]);
   const [currentMed, setCurrentMed] = useState({ name: '', posology: '' });
   const [isSpecialControl, setIsSpecialControl] = useState(false);
+  const [showGenderInSpecial, setShowGenderInSpecial] = useState(true);
   const [prescriptionPresets, setPrescriptionPresets] = useState<{ name: string; posology: string }[]>([]);
 
   useEffect(() => {
@@ -1714,6 +1715,17 @@ export default function PatientModal({
                     />
                     Receituário de Controle Especial (Duas Vias)
                   </label>
+                  {isSpecialControl && (
+                    <label className="flex items-center gap-2 text-sm text-teal-800 bg-teal-50 border border-teal-150 px-3 py-2 rounded-lg font-medium cursor-pointer select-none">
+                      <input 
+                        type="checkbox"
+                        checked={showGenderInSpecial}
+                        onChange={(e) => setShowGenderInSpecial(e.target.checked)}
+                        className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 h-4 w-4"
+                      />
+                      Imprimir Sexo do Paciente
+                    </label>
+                  )}
                   <button 
                     onClick={handleSavePrescription}
                     className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -3398,7 +3410,7 @@ export default function PatientModal({
                 <p><strong>Paciente:</strong> <span className="font-bold text-slate-900 text-[13px]">{patient.fullName}</span></p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 my-1">
                   <p><strong>Idade:</strong> <span className="text-slate-800 font-semibold">{calculatePatientAge(patient.birthDate) || '_____________________'}</span></p>
-                  <p><strong>Sexo:</strong> <span className="text-slate-800 font-semibold">{getPatientGenderLabel(patient.gender) || '_____________________'}</span></p>
+                  <p><strong>Sexo:</strong> <span className="text-slate-800 font-semibold">{showGenderInSpecial ? (getPatientGenderLabel(patient.gender) || '_____________________') : '_____________________'}</span></p>
                 </div>
                 <p><strong>Endereço:</strong> <span className="text-slate-800">{[patient.street, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(', ') || '_____________________________________________________________'}</span></p>
                 <p><strong>Data:</strong> <span className="font-semibold text-slate-900">{formatDateShort(getLocalDateString())}</span></p>
@@ -3485,7 +3497,7 @@ export default function PatientModal({
                 <p><strong>Paciente:</strong> <span className="font-bold text-slate-900 text-[13px]">{patient.fullName}</span></p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 my-1">
                   <p><strong>Idade:</strong> <span className="text-slate-800 font-semibold">{calculatePatientAge(patient.birthDate) || '_____________________'}</span></p>
-                  <p><strong>Sexo:</strong> <span className="text-slate-800 font-semibold">{getPatientGenderLabel(patient.gender) || '_____________________'}</span></p>
+                  <p><strong>Sexo:</strong> <span className="text-slate-800 font-semibold">{showGenderInSpecial ? (getPatientGenderLabel(patient.gender) || '_____________________') : '_____________________'}</span></p>
                 </div>
                 <p><strong>Endereço:</strong> <span className="text-slate-800">{[patient.street, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(', ') || '_____________________________________________________________'}</span></p>
                 <p><strong>Data:</strong> <span className="font-semibold text-slate-900">{formatDateShort(getLocalDateString())}</span></p>
