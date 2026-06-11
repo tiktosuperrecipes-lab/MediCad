@@ -3410,7 +3410,9 @@ export default function PatientModal({
                 <p><strong>Paciente:</strong> <span className="font-bold text-slate-900 text-[13px]">{patient.fullName}</span></p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 my-1">
                   <p><strong>Idade:</strong> <span className="text-slate-800 font-semibold">{calculatePatientAge(patient.birthDate) || '_____________________'}</span></p>
-                  <p><strong>Sexo:</strong> <span className="text-slate-800 font-semibold">{showGenderInSpecial ? (getPatientGenderLabel(patient.gender) || '_____________________') : '_____________________'}</span></p>
+                  {showGenderInSpecial && (
+                    <p><strong>Sexo:</strong> <span className="text-slate-800 font-semibold">{getPatientGenderLabel(patient.gender) || '_____________________'}</span></p>
+                  )}
                 </div>
                 <p><strong>Endereço:</strong> <span className="text-slate-800">{[patient.street, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(', ') || '_____________________________________________________________'}</span></p>
                 <p><strong>Data:</strong> <span className="font-semibold text-slate-900">{formatDateShort(getLocalDateString())}</span></p>
@@ -3497,7 +3499,9 @@ export default function PatientModal({
                 <p><strong>Paciente:</strong> <span className="font-bold text-slate-900 text-[13px]">{patient.fullName}</span></p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 my-1">
                   <p><strong>Idade:</strong> <span className="text-slate-800 font-semibold">{calculatePatientAge(patient.birthDate) || '_____________________'}</span></p>
-                  <p><strong>Sexo:</strong> <span className="text-slate-800 font-semibold">{showGenderInSpecial ? (getPatientGenderLabel(patient.gender) || '_____________________') : '_____________________'}</span></p>
+                  {showGenderInSpecial && (
+                    <p><strong>Sexo:</strong> <span className="text-slate-800 font-semibold">{getPatientGenderLabel(patient.gender) || '_____________________'}</span></p>
+                  )}
                 </div>
                 <p><strong>Endereço:</strong> <span className="text-slate-800">{[patient.street, patient.number, patient.neighborhood, patient.city, patient.state].filter(Boolean).join(', ') || '_____________________________________________________________'}</span></p>
                 <p><strong>Data:</strong> <span className="font-semibold text-slate-900">{formatDateShort(getLocalDateString())}</span></p>
