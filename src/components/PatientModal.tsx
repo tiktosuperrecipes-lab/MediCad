@@ -47,6 +47,37 @@ export default function PatientModal({
   const [printMode, setPrintMode] = useState<'history' | 'prescription' | 'exam' | 'certificate' | 'details' | 'budget' | 'receipt'>('details');
   const [settings, setSettings] = useState<ClinicSettings | null>(null);
 
+  // Custom Alert & Confirm States
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm?: () => void | Promise<void>;
+    confirmText?: string;
+    cancelText?: string;
+    isDanger?: boolean;
+  }>({ isOpen: false, message: '' });
+
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = crypto.randomUUID();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  const askConfirm = (message: string, onConfirm: () => void | Promise<void>, isDanger = true, confirmText = 'Excluir', cancelText = 'Cancelar') => {
+    setConfirmState({
+      isOpen: true,
+      message,
+      onConfirm,
+      confirmText,
+      cancelText,
+      isDanger
+    });
+  };
+
   useEffect(() => {
     getSettings().then(setSettings);
   }, []);
@@ -116,7 +147,7 @@ export default function PatientModal({
 
   const handleSaveAsPreset = () => {
     if (!currentMed.name.trim() || !currentMed.posology.trim()) {
-      alert("Preencha o nome do medicamento e a posologia para salvar o modelo.");
+      showToast("Preencha o nome do medicamento e a posologia para salvar o modelo.", "error");
       return;
     }
 
@@ -125,7 +156,7 @@ export default function PatientModal({
     );
 
     if (isExisting) {
-      alert("Já existe um modelo com este nome de medicamento.");
+      showToast("Já existe um modelo com este nome de medicamento.", "error");
       return;
     }
 
@@ -151,33 +182,34 @@ export default function PatientModal({
       { name: 'Amoxicilina 500mg + Clavulanato 125mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 7 a 10 dias' }
     ];
     setPrescriptionPresets([...defaultPresets, ...customList]);
-    alert("Prescrição salva como modelo com sucesso!");
+    showToast("Prescrição salva como modelo com sucesso!");
   };
 
   const handleDeletePreset = (nameToDelete: string) => {
-    if (!window.confirm(`Deseja remover o modelo "${nameToDelete}"?`)) return;
+    askConfirm(`Deseja remover o modelo "${nameToDelete}"?`, () => {
+      const saved = localStorage.getItem('@medicad:prescription-presets');
+      let customList: { name: string; posology: string }[] = [];
+      if (saved) {
+        try {
+          customList = JSON.parse(saved);
+        } catch (e) {}
+      }
 
-    const saved = localStorage.getItem('@medicad:prescription-presets');
-    let customList: { name: string; posology: string }[] = [];
-    if (saved) {
-      try {
-        customList = JSON.parse(saved);
-      } catch (e) {}
-    }
+      const filtered = customList.filter(p => p.name !== nameToDelete);
+      localStorage.setItem('@medicad:prescription-presets', JSON.stringify(filtered));
 
-    const filtered = customList.filter(p => p.name !== nameToDelete);
-    localStorage.setItem('@medicad:prescription-presets', JSON.stringify(filtered));
-
-    const defaultPresets = [
-      { name: 'Amoxicilina 500mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 7 dias' },
-      { name: 'Nimesulida 100mg', posology: 'Tomar 1 comprimido de 12 em 12 horas por 3 a 5 dias (após as refeições)' },
-      { name: 'Dipirona Sódica 500mg', posology: 'Tomar 1 comprimido de 6 em 6 horas em caso de dor ou febre (máx. 4x ao dia)' },
-      { name: 'Paracetamol 750mg', posology: 'Tomar 1 comprimido de 6 em 6 horas em caso de dor ou febre' },
-      { name: 'Ibuprofeno 600mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 3 a 5 dias em caso de dor ou inflamação' },
-      { name: 'Dexametasona 4mg', posology: 'Tomar 1 comprimido pela manhã por 3 dias' },
-      { name: 'Amoxicilina 500mg + Clavulanato 125mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 7 a 10 dias' }
-    ];
-    setPrescriptionPresets([...defaultPresets, ...filtered]);
+      const defaultPresets = [
+        { name: 'Amoxicilina 500mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 7 dias' },
+        { name: 'Nimesulida 100mg', posology: 'Tomar 1 comprimido de 12 em 12 horas por 3 a 5 dias (após as refeições)' },
+        { name: 'Dipirona Sódica 500mg', posology: 'Tomar 1 comprimido de 6 em 6 horas em caso de dor ou febre (máx. 4x ao dia)' },
+        { name: 'Paracetamol 750mg', posology: 'Tomar 1 comprimido de 6 em 6 horas em caso de dor ou febre' },
+        { name: 'Ibuprofeno 600mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 3 a 5 dias em caso de dor ou inflamação' },
+        { name: 'Dexametasona 4mg', posology: 'Tomar 1 comprimido pela manhã por 3 dias' },
+        { name: 'Amoxicilina 500mg + Clavulanato 125mg', posology: 'Tomar 1 comprimido de 8 em 8 horas por 7 a 10 dias' }
+      ];
+      setPrescriptionPresets([...defaultPresets, ...filtered]);
+      showToast("Modelo de prescrição excluído.");
+    });
   };
 
   const [examRequestText, setExamRequestText] = useState('');
@@ -299,7 +331,7 @@ export default function PatientModal({
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
     setIsEditingPayer(false);
-    alert('Dados do pagador atualizados com sucesso!');
+    showToast('Dados do pagador atualizados com sucesso!');
   };
 
   const handleSaveAnamnesis = () => {
@@ -309,12 +341,12 @@ export default function PatientModal({
     };
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
-    alert('Anamnese salva com sucesso!');
+    showToast('Anamnese salva com sucesso!');
   };
 
   const handleSaveConsultation = async () => {
     if (!consultationForm.notes.trim()) {
-      alert('Por favor, preencha as anotações da consulta.');
+      showToast('Por favor, preencha as anotações da consulta.', 'error');
       return;
     }
 
@@ -389,28 +421,29 @@ export default function PatientModal({
         amount: '',
         paymentMethod: ''
       });
-      alert('Evolução salva com sucesso!');
+      showToast('Evolução salva com sucesso!');
     } catch (error) {
       console.error(error);
-      alert('Erro ao salvar evolução.');
+      showToast('Erro ao salvar evolução.', 'error');
     }
   };
 
   const handleDeleteEvolution = async (entry: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este registro?')) return;
-    
-    try {
-      await deleteClinicalEvolution(patient.id, entry);
-      
-      const updatedPatient = {
-        ...patient,
-        historico_clinico: patient.historico_clinico?.filter(e => e !== entry)
-      };
-      onUpdate(updatedPatient);
-    } catch (error) {
-      console.error("Erro ao excluir evolução:", error);
-      alert("Erro ao excluir evolução.");
-    }
+    askConfirm('Tem certeza que deseja excluir este registro?', async () => {
+      try {
+        await deleteClinicalEvolution(patient.id, entry);
+        
+        const updatedPatient = {
+          ...patient,
+          historico_clinico: patient.historico_clinico?.filter(e => e !== entry)
+        };
+        onUpdate(updatedPatient);
+        showToast('Evolução excluída com sucesso!');
+      } catch (error) {
+        console.error("Erro ao excluir evolução:", error);
+        showToast("Erro ao excluir evolução.", "error");
+      }
+    });
   };
 
   const handleUpdateEvolution = async () => {
@@ -433,21 +466,23 @@ export default function PatientModal({
       };
       onUpdate(updatedPatient);
       setEditingEvolution(null);
+      showToast('Evolução atualizada com sucesso!');
     } catch (error) {
       console.error("Erro ao atualizar evolução:", error);
-      alert("Erro ao atualizar evolução.");
+      showToast("Erro ao atualizar evolução.", "error");
     }
   };
 
   const handleDeleteOldConsultation = (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este registro antigo?')) return;
-    
-    const updatedPatient = {
-      ...patient,
-      consultations: patient.consultations?.filter(c => c.id !== id)
-    };
-    savePatient(updatedPatient);
-    onUpdate(updatedPatient);
+    askConfirm('Tem certeza que deseja excluir este registro antigo?', () => {
+      const updatedPatient = {
+        ...patient,
+        consultations: patient.consultations?.filter(c => c.id !== id)
+      };
+      savePatient(updatedPatient);
+      onUpdate(updatedPatient);
+      showToast('Registro antigo excluído com sucesso!');
+    });
   };
 
   const handleAddMedication = () => {
@@ -462,7 +497,7 @@ export default function PatientModal({
 
   const handleSavePrescription = () => {
     if (medications.length === 0) {
-      alert('Adicione pelo menos um medicamento.');
+      showToast('Adicione pelo menos um medicamento.', 'error');
       return;
     }
     const newPrescription: Prescription = {
@@ -481,7 +516,7 @@ export default function PatientModal({
 
   const handleSaveExam = () => {
     if (!examRequestText.trim()) {
-      alert('Preencha o pedido de exames.');
+      showToast('Preencha o pedido de exames.', 'error');
       return;
     }
     const newExam: ExamRequest = {
@@ -538,7 +573,7 @@ export default function PatientModal({
 
   const handleSaveBudget = async () => {
     if (budgetItems.length === 0) {
-      alert('Adicione pelo menos um item ao orçamento.');
+      showToast('Adicione pelo menos um item ao orçamento.', 'error');
       return;
     }
 
@@ -548,7 +583,7 @@ export default function PatientModal({
     const budgetData: Budget & { recordType: 'budget' } = {
       id: editingBudgetId || crypto.randomUUID(),
       date: editingBudgetId 
-        ? (patient.financeiro?.find(f => (f as any).id === editingBudgetId) as Budget)?.date || getLocalDateString()
+         ? (patient.financeiro?.find(f => (f as any).id === editingBudgetId) as Budget)?.date || getLocalDateString()
         : getLocalDateString(),
       items: budgetItems,
       totalAmount,
@@ -580,7 +615,7 @@ export default function PatientModal({
           financeiro: updatedFinanceiro,
           budgets: updatedBudgets
         });
-        alert('Orçamento atualizado com sucesso!');
+        showToast('Orçamento atualizado com sucesso!');
       } else {
         await addFinancialRecord(patient.id, budgetData);
         
@@ -590,7 +625,7 @@ export default function PatientModal({
         };
 
         onUpdate(updatedPatient);
-        alert('Orçamento salvo com sucesso!');
+        showToast('Orçamento salvo com sucesso!');
       }
       
       setBudgetItems([]);
@@ -598,7 +633,7 @@ export default function PatientModal({
       setBudgetPaymentNotes('');
       setEditingBudgetId(null);
     } catch (error) {
-      alert('Erro ao salvar orçamento no Firebase.');
+      showToast('Erro ao salvar orçamento no Firebase.', 'error');
     }
   };
 
@@ -616,7 +651,7 @@ export default function PatientModal({
 
   const handlePrintCurrentBudget = () => {
     if (budgetItems.length === 0) {
-      alert('Adicione pelo menos um item ao orçamento para imprimir.');
+      showToast('Adicione pelo menos um item ao orçamento para imprimir.', 'error');
       return;
     }
     setPrintBudgetId(null);
@@ -646,7 +681,7 @@ export default function PatientModal({
 
   const handleSavePayment = async () => {
     if (paymentForm.amount <= 0) {
-      alert('O valor do pagamento deve ser maior que zero.');
+      showToast('O valor do pagamento deve ser maior que zero.', 'error');
       return;
     }
 
@@ -710,52 +745,53 @@ export default function PatientModal({
         payerCPF: patient.cpf || '',
         payerType: 'patient'
       });
-      alert('Pagamento registrado com sucesso no Firebase!');
+      showToast('Pagamento registrado com sucesso!');
     } catch (error) {
-      alert('Erro ao registrar pagamento no Firebase.');
+      showToast('Erro ao registrar pagamento no Firebase.', 'error');
     }
   };
 
   const handleDeletePayment = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este pagamento? Ele também será removido do financeiro geral.')) return;
-    
-    try {
-      // Find the payment to check if it was linked to a budget
-      const paymentToDelete = patient.financeiro?.find((f: any) => f.id === id && f.recordType === 'payment') as Payment;
+    askConfirm('Tem certeza que deseja excluir este pagamento? Ele também será removido do financeiro geral.', async () => {
+      try {
+        // Find the payment to check if it was linked to a budget
+        const paymentToDelete = patient.financeiro?.find((f: any) => f.id === id && f.recordType === 'payment') as Payment;
 
-      // Tenta remover do financeiro geral primeiro
-      await deleteGlobalFinancialRecord(id).catch(err => console.warn("Registro não encontrado no financeiro geral:", err));
+        // Tenta remover do financeiro geral primeiro
+        await deleteGlobalFinancialRecord(id).catch(err => console.warn("Registro não encontrado no financeiro geral:", err));
 
-      let updatedPatient = {
-        ...patient,
-        payments: patient.payments?.filter(p => p.id !== id),
-        financeiro: patient.financeiro?.filter((f: any) => f.id !== id)
-      };
+        let updatedPatient = {
+          ...patient,
+          payments: patient.payments?.filter(p => p.id !== id),
+          financeiro: patient.financeiro?.filter((f: any) => f.id !== id)
+        };
 
-      // If it was linked to a budget, decrease the paidAmount
-      if (paymentToDelete?.linkedBudgetId) {
-        updatedPatient.budgets = updatedPatient.budgets?.map(b => 
-          b.id === paymentToDelete.linkedBudgetId ? { ...b, paidAmount: Math.max(0, (b.paidAmount || 0) - paymentToDelete.amount) } : b
-        );
-        updatedPatient.financeiro = updatedPatient.financeiro?.map(f => 
-          (f as any).id === paymentToDelete.linkedBudgetId && (f as any).recordType === 'budget' 
-            ? { ...f, paidAmount: Math.max(0, ((f as any).paidAmount || 0) - paymentToDelete.amount) } 
-            : f
-        );
+        // If it was linked to a budget, decrease the paidAmount
+        if (paymentToDelete?.linkedBudgetId) {
+          updatedPatient.budgets = updatedPatient.budgets?.map(b => 
+            b.id === paymentToDelete.linkedBudgetId ? { ...b, paidAmount: Math.max(0, (b.paidAmount || 0) - paymentToDelete.amount) } : b
+          );
+          updatedPatient.financeiro = updatedPatient.financeiro?.map(f => 
+            (f as any).id === paymentToDelete.linkedBudgetId && (f as any).recordType === 'budget' 
+              ? { ...f, paidAmount: Math.max(0, ((f as any).paidAmount || 0) - paymentToDelete.amount) } 
+              : f
+          );
 
-        // Sync budget update to Firestore
-        const updatedBudget = updatedPatient.financeiro?.find(f => (f as any).id === paymentToDelete.linkedBudgetId && (f as any).recordType === 'budget');
-        if (updatedBudget) {
-          await updateFinancialRecord(patient.id, updatedBudget as any);
+          // Sync budget update to Firestore
+          const updatedBudget = updatedPatient.financeiro?.find(f => (f as any).id === paymentToDelete.linkedBudgetId && (f as any).recordType === 'budget');
+          if (updatedBudget) {
+            await updateFinancialRecord(patient.id, updatedBudget as any);
+          }
         }
+        
+        await savePatient(updatedPatient);
+        onUpdate(updatedPatient);
+        showToast('Pagamento excluído com sucesso!');
+      } catch (error) {
+        console.error("Erro ao excluir pagamento:", error);
+        showToast("Erro ao excluir pagamento.", "error");
       }
-      
-      await savePatient(updatedPatient);
-      onUpdate(updatedPatient);
-    } catch (error) {
-      console.error("Erro ao excluir pagamento:", error);
-      alert("Erro ao excluir pagamento.");
-    }
+    });
   };
 
   const formatCurrency = (value: number) => {
@@ -779,7 +815,7 @@ export default function PatientModal({
       });
     } catch (error) {
       console.error("Erro ao processar foto:", error);
-      alert('Erro ao processar a foto. Tente novamente.');
+      showToast('Erro ao processar a foto. Tente novamente.', 'error');
     } finally {
       setIsUploadingPhoto(false);
       if (fileInputRef.current) {
@@ -808,6 +844,7 @@ export default function PatientModal({
     onUpdate(updatedPatient);
     setPendingPhoto(null);
     setNewPhotoSize(null);
+    showToast('Foto salva com sucesso!');
   };
 
   const handleAddLink = async () => {
@@ -836,13 +873,14 @@ export default function PatientModal({
         links: [...(patient.links || []), newLink]
       };
       onUpdate(updatedPatient);
+      showToast('Link adicionado com sucesso!');
     } catch (error) {
-      alert('Erro ao salvar link.');
+      showToast('Erro ao salvar link.', 'error');
     }
   };
 
   const handleDeleteLink = async (link: PatientLink) => {
-    if (window.confirm('Deseja remover este link?')) {
+    askConfirm('Deseja remover este link?', async () => {
       try {
         await removePatientLink(patient.id, link);
         // Construct updated patient for immediate UI update
@@ -851,31 +889,33 @@ export default function PatientModal({
           links: (patient.links || []).filter(l => l.id !== link.id)
         };
         onUpdate(updatedPatient);
+        showToast('Link removido com sucesso!');
       } catch (error) {
-        alert('Erro ao remover link.');
+        showToast('Erro ao remover link.', 'error');
       }
-    }
+    }, true, 'Remover');
   };
 
   const handleDeletePhoto = async (photoToDelete: string | PatientPhoto) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta foto?')) return;
-
-    try {
-      const updatedPatient = {
-        ...patient,
-        fotos: patient.fotos?.filter(f => {
-          if (typeof f === 'string' && typeof photoToDelete === 'string') return f !== photoToDelete;
-          if (typeof f !== 'string' && typeof photoToDelete !== 'string') return f.id !== photoToDelete.id;
-          return f !== photoToDelete;
-        })
-      };
-      savePatient(updatedPatient);
-      onUpdate(updatedPatient);
-      setViewingPhoto(null);
-    } catch (error) {
-      console.error("Erro ao excluir foto:", error);
-      alert('Erro ao excluir a foto.');
-    }
+    askConfirm('Tem certeza que deseja excluir esta foto?', async () => {
+      try {
+        const updatedPatient = {
+          ...patient,
+          fotos: patient.fotos?.filter(f => {
+            if (typeof f === 'string' && typeof photoToDelete === 'string') return f !== photoToDelete;
+            if (typeof f !== 'string' && typeof photoToDelete !== 'string') return f.id !== photoToDelete.id;
+            return f !== photoToDelete;
+          })
+        };
+        savePatient(updatedPatient);
+        onUpdate(updatedPatient);
+        setViewingPhoto(null);
+        showToast('Foto excluída com sucesso!');
+      } catch (error) {
+        console.error("Erro ao excluir foto:", error);
+        showToast('Erro ao excluir a foto.', 'error');
+      }
+    });
   };
 
   const handleUpdatePhotoDetails = () => {
@@ -2678,8 +2718,9 @@ export default function PatientModal({
                                                 };
                                                 onUpdate(updatedPatient);
                                                 setEditingPaymentFeeId(null);
+                                                showToast("Taxa atualizada com sucesso!");
                                               } catch (error) {
-                                                alert("Erro ao atualizar taxa.");
+                                                showToast("Erro ao atualizar taxa.", "error");
                                               }
                                             } else if (e.key === 'Escape') {
                                               setEditingPaymentFeeId(null);
@@ -2703,8 +2744,9 @@ export default function PatientModal({
                                               };
                                               onUpdate(updatedPatient);
                                               setEditingPaymentFeeId(null);
+                                              showToast("Taxa atualizada com sucesso!");
                                             } catch (error) {
-                                              alert("Erro ao atualizar taxa.");
+                                              showToast("Erro ao atualizar taxa.", "error");
                                             }
                                           }}
                                           className="text-teal-600 hover:text-teal-800"
@@ -2802,7 +2844,7 @@ export default function PatientModal({
                                         onUpdate(updatedPatient);
                                       } catch (error) {
                                         console.error("Erro ao emitir recibo:", error);
-                                        alert("Erro ao emitir recibo.");
+                                        showToast("Erro ao emitir recibo.", "error");
                                       }
                                     }
                                     setPrintReceiptPaymentId(payment.id);
@@ -2815,8 +2857,8 @@ export default function PatientModal({
                                 </button>
                                 {payment.receiptIssued && (
                                   <button
-                                    onClick={async () => {
-                                      if (window.confirm('Deseja remover o registro de recibo deste pagamento? Ele deixará de aparecer no faturamento declarado.')) {
+                                    onClick={() => {
+                                      askConfirm('Deseja remover o registro de recibo deste pagamento? Ele deixará de aparecer no faturamento declarado.', async () => {
                                         try {
                                           await updateGlobalFinancialRecordReceipt(payment.id, false);
                                           const updatedPatient = {
@@ -2828,11 +2870,12 @@ export default function PatientModal({
                                             )
                                           };
                                           onUpdate(updatedPatient);
+                                          showToast('Registro de recibo removido de faturamento.');
                                         } catch (error) {
                                           console.error("Erro ao remover recibo:", error);
-                                          alert("Erro ao remover recibo.");
+                                          showToast("Erro ao remover recibo.", "error");
                                         }
-                                      }
+                                      }, true, 'Remover');
                                     }}
                                     className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                     title="Remover Recibo (Desdeclarar)"
@@ -2975,7 +3018,7 @@ export default function PatientModal({
                                     onUpdate(updatedPatient);
                                   } catch (error) {
                                     console.error("Erro ao emitir recibo:", error);
-                                    alert("Erro ao emitir recibo.");
+                                    showToast("Erro ao emitir recibo.", "error");
                                   }
                                 }
                                 setPrintReceiptPaymentId(payment.id);
@@ -2988,8 +3031,8 @@ export default function PatientModal({
                             </button>
                             {payment.receiptIssued && (
                               <button
-                                onClick={async () => {
-                                  if (window.confirm('Deseja remover o registro de recibo deste pagamento? Ele deixará de aparecer no faturamento declarado.')) {
+                                onClick={() => {
+                                  askConfirm('Deseja remover o registro de recibo deste pagamento? Ele deixará de aparecer no faturamento declarado.', async () => {
                                     try {
                                       await updateGlobalFinancialRecordReceipt(payment.id, false);
                                       const updatedPatient = {
@@ -2999,11 +3042,12 @@ export default function PatientModal({
                                         )
                                       };
                                       onUpdate(updatedPatient);
+                                      showToast('Registro de recibo removido.');
                                     } catch (error) {
                                       console.error("Erro ao remover recibo:", error);
-                                      alert("Erro ao remover recibo.");
+                                      showToast("Erro ao remover recibo.", "error");
                                     }
-                                  }
+                                  }, true, 'Remover');
                                 }}
                                 className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                 title="Remover Recibo (Desdeclarar)"
@@ -3083,7 +3127,7 @@ export default function PatientModal({
                   <button
                     onClick={() => {
                       savePatient(patient);
-                      alert('Odontograma salvo com sucesso!');
+                      showToast('Odontograma salvo com sucesso!');
                     }}
                     className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors"
                   >
@@ -3677,6 +3721,96 @@ export default function PatientModal({
           </div>
         </div>
       )}
+
+      {/* Toast Alerts Portal */}
+      <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.9 }}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm max-w-sm pointer-events-auto ${
+                toast.type === 'error'
+                  ? 'bg-rose-50 border-rose-100 text-rose-800'
+                  : 'bg-emerald-50 border-emerald-100 text-emerald-800'
+              }`}
+            >
+              {toast.type === 'error' ? (
+                <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
+              ) : (
+                <Check className="h-5 w-5 text-emerald-600 shrink-0" />
+              )}
+              <span className="font-medium font-sans">{toast.message}</span>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Custom Confirmation Dialog */}
+      <AnimatePresence>
+        {confirmState.isOpen && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            {/* Modal Box */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden"
+            >
+              <div className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className={`p-2.5 rounded-full shrink-0 ${confirmState.isDanger ? 'bg-rose-50 text-rose-600' : 'bg-teal-50 text-teal-600'}`}>
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Confirmação</h3>
+                    <p className="mt-1.5 text-xs text-slate-600 leading-relaxed font-sans">
+                      {confirmState.message}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-5 flex justify-end gap-2.5">
+                  <button
+                    onClick={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+                    className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium rounded-lg text-xs transition-colors"
+                  >
+                    {confirmState.cancelText || 'Cancelar'}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (confirmState.onConfirm) {
+                        try {
+                          await confirmState.onConfirm();
+                        } catch (e) {
+                          console.error(e);
+                        }
+                      }
+                      setConfirmState(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    className={`px-4 py-1.5 text-white font-medium rounded-lg text-xs transition-colors ${
+                      confirmState.isDanger 
+                        ? 'bg-rose-600 hover:bg-rose-700 active:bg-rose-800' 
+                        : 'bg-teal-600 hover:bg-teal-700 active:bg-teal-800'
+                    }`}
+                  >
+                    {confirmState.confirmText || 'Confirmar'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

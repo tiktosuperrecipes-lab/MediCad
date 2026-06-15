@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, FileText, CheckCircle, X, Plus } from 'lucide-react';
+import { Calendar, Clock, User, FileText, CheckCircle, X, Plus, AlertCircle, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient, Appointment } from '../types';
 import { getAppointments, saveAppointment, deleteAppointment } from '../lib/storage';
@@ -12,6 +12,35 @@ interface AgendaProps {
 }
 
 export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' }[]>([]);
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm?: () => void | Promise<void>;
+    isDanger?: boolean;
+    confirmText?: string;
+    cancelText?: string;
+  }>({ isOpen: false, message: '' });
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const id = crypto.randomUUID();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  const askConfirm = (message: string, onConfirm: () => void | Promise<void>, isDanger = true, confirmText = 'Excluir', cancelText = 'Cancelar') => {
+    setConfirmState({
+      isOpen: true,
+      message,
+      onConfirm,
+      isDanger,
+      confirmText,
+      cancelText
+    });
+  };
+
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -102,7 +131,7 @@ export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
 
   const handleSave = async () => {
     if (!formData.patientId) {
-      alert('Por favor, selecione um paciente.');
+      showToast('Por favor, selecione um paciente.', 'error');
       return;
     }
 
@@ -121,23 +150,25 @@ export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
       }
       handleCloseModal();
       loadAppointments();
+      showToast('Agendamento salvo com sucesso!');
     } catch (error) {
-      alert('Erro ao salvar agendamento.');
+      showToast('Erro ao salvar agendamento.', 'error');
     }
   };
 
   const handleDelete = async () => {
     if (!editingAppointment) return;
     
-    if (window.confirm('Tem certeza que deseja excluir este agendamento?')) {
+    askConfirm('Tem certeza que deseja excluir este agendamento?', async () => {
       try {
         await deleteAppointment(editingAppointment.id);
         handleCloseModal();
         loadAppointments();
+        showToast('Agendamento excluído com sucesso!');
       } catch (error) {
-        alert('Erro ao excluir agendamento.');
+        showToast('Erro ao excluir agendamento.', 'error');
       }
-    }
+    });
   };
 
   const handleDragStart = (e: React.DragEvent, appointment: Appointment) => {
@@ -160,7 +191,7 @@ export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
       // Check if target slot is already occupied
       const occupied = appointments.find(a => a.time === targetTime);
       if (occupied) {
-        alert('Este horário já está ocupado.');
+        showToast('Este horário já está ocupado.', 'error');
         return;
       }
 
@@ -170,8 +201,9 @@ export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
           time: targetTime
         });
         loadAppointments();
+        showToast('Agendamento movido com sucesso!');
       } catch (error) {
-        alert('Erro ao mover agendamento.');
+        showToast('Erro ao mover agendamento.', 'error');
       }
     }
   };
@@ -398,6 +430,96 @@ export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
             </div>
           </motion.div>
         </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Alerts Portal */}
+      <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.9 }}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm max-w-sm pointer-events-auto ${
+                toast.type === 'error'
+                  ? 'bg-rose-50 border-rose-100 text-rose-800'
+                  : 'bg-emerald-50 border-emerald-100 text-emerald-800'
+              }`}
+            >
+              {toast.type === 'error' ? (
+                <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
+              ) : (
+                <Check className="h-5 w-5 text-emerald-600 shrink-0" />
+              )}
+              <span className="font-medium font-sans">{toast.message}</span>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Custom Confirmation Dialog */}
+      <AnimatePresence>
+        {confirmState.isOpen && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            {/* Modal Box */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden"
+            >
+              <div className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className={`p-2.5 rounded-full shrink-0 ${confirmState.isDanger ? 'bg-rose-50 text-rose-600' : 'bg-teal-50 text-teal-600'}`}>
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Confirmação</h3>
+                    <p className="mt-1.5 text-xs text-slate-600 leading-relaxed font-sans">
+                      {confirmState.message}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-5 flex justify-end gap-2.5">
+                  <button
+                    onClick={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+                    className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium rounded-lg text-xs transition-colors"
+                  >
+                    {confirmState.cancelText || 'Cancelar'}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (confirmState.onConfirm) {
+                        try {
+                          await confirmState.onConfirm();
+                        } catch (e) {
+                          console.error(e);
+                        }
+                      }
+                      setConfirmState(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    className={`px-4 py-1.5 text-white font-medium rounded-lg text-xs transition-colors ${
+                      confirmState.isDanger 
+                        ? 'bg-rose-600 hover:bg-rose-700 active:bg-rose-800' 
+                        : 'bg-teal-600 hover:bg-teal-700 active:bg-teal-800'
+                    }`}
+                  >
+                    {confirmState.confirmText || 'Confirmar'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </motion.div>
