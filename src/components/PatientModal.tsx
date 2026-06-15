@@ -60,6 +60,19 @@ export default function PatientModal({
     amount: '',
     paymentMethod: ''
   });
+  const [procedures, setProcedures] = useState<{ id: string; name: string; price: string }[]>([]);
+  const [newProcedureName, setNewProcedureName] = useState('');
+  const [newProcedurePrice, setNewProcedurePrice] = useState('');
+
+  const totalProcedures = useMemo(() => {
+    return procedures.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0);
+  }, [procedures]);
+
+  useEffect(() => {
+    if (procedures.length > 0) {
+      setConsultationForm(prev => ({ ...prev, amount: totalProcedures.toFixed(2) }));
+    }
+  }, [procedures, totalProcedures]);
 
   // Anamnesis State
   const [anamnesisForm, setAnamnesisForm] = useState({
@@ -306,44 +319,69 @@ export default function PatientModal({
     }
 
     try {
+      let finalNotes = consultationForm.notes;
+      if (procedures.length > 0) {
+        finalNotes += '\n\nProcedimentos:\n' + procedures.map(p => `- ${p.name}: R$ ${parseFloat(p.price).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join('\n') + `\nTotal Geral: R$ ${totalProcedures.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+
       // Usando arrayUnion conforme solicitado no PASSO 2
-      await addClinicalEvolution(patient.id, consultationForm.notes);
+      await addClinicalEvolution(patient.id, finalNotes);
       
       // Atualizando o estado local para refletir a mudança imediatamente
       const timestamp = new Date().toLocaleString('pt-BR');
-      const evolutionEntry = `${timestamp}: ${consultationForm.notes}`;
+      const evolutionEntry = `${timestamp}: ${finalNotes}`;
       
-      let newPayment: any = null;
-      if (consultationForm.amount && parseFloat(consultationForm.amount) > 0) {
+      const method = consultationForm.paymentMethod || 'Não informado';
+      const cleanMethod = method.toLowerCase().includes('pix') ? 'pix' : 
+                          method.toLowerCase().includes('cartão') ? 'credit' : 
+                          method.toLowerCase().includes('dinheiro') ? 'cash' : 'transfer';
+
+      let paymentsToAdd: any[] = [];
+
+      if (procedures.length > 0) {
+        for (const proc of procedures) {
+          const paymentId = crypto.randomUUID();
+          const amount = parseFloat(proc.price);
+          const pRecord = {
+            id: paymentId,
+            date: consultationForm.date,
+            amount: amount,
+            method: cleanMethod,
+            notes: `Procedimento: ${proc.name} (Evolução)`,
+            status: 'Pendente',
+            receiptIssued: false,
+            recordType: 'payment'
+          };
+          await addFinancialRecord(patient.id, pRecord);
+          paymentsToAdd.push(pRecord);
+        }
+      } else if (consultationForm.amount && parseFloat(consultationForm.amount) > 0) {
         const paymentId = crypto.randomUUID();
         const amount = parseFloat(consultationForm.amount);
-        const method = consultationForm.paymentMethod || 'Não informado';
         const procedure = consultationForm.notes.substring(0, 100) + (consultationForm.notes.length > 100 ? '...' : '');
-        
-        newPayment = {
+        const pRecord = {
           id: paymentId,
           date: consultationForm.date,
           amount: amount,
-          method: method.toLowerCase().includes('pix') ? 'pix' : 
-                  method.toLowerCase().includes('cartão') ? 'credit' : 
-                  method.toLowerCase().includes('dinheiro') ? 'cash' : 'transfer',
+          method: cleanMethod,
           notes: `Evolução: ${procedure}`,
           status: 'Pendente',
           receiptIssued: false,
           recordType: 'payment'
         };
-        
-        await addFinancialRecord(patient.id, newPayment);
+        await addFinancialRecord(patient.id, pRecord);
+        paymentsToAdd.push(pRecord);
       }
 
       const updatedPatient = {
         ...patient,
         historico_clinico: [evolutionEntry, ...(patient.historico_clinico || [])],
-        financeiro: newPayment ? [newPayment, ...(patient.financeiro || [])] : patient.financeiro
+        financeiro: [...paymentsToAdd, ...(patient.financeiro || [])]
       };
 
       onUpdate(updatedPatient);
       setShowNewConsultation(false);
+      setProcedures([]);
       setConsultationForm({ 
         date: getLocalDateString(), 
         notes: '', 
@@ -353,6 +391,7 @@ export default function PatientModal({
       });
       alert('Evolução salva com sucesso!');
     } catch (error) {
+      console.error(error);
       alert('Erro ao salvar evolução.');
     }
   };
@@ -1299,7 +1338,7 @@ export default function PatientModal({
             transition={{ type: "spring", stiffness: 1000, damping: 50 }}
             className={`${printMode === 'history' ? 'print:block' : 'print:hidden'} print:mt-12 w-full`}
           >
-            <div className={`flex items-center justify-between mb-6 print:hidden ${printMode !== 'history' ? 'hidden' : ''}`}>
+            <div className="flex items-center justify-between mb-6 print:hidden">
               <h3 className="text-lg font-semibold text-slate-800">Histórico de Consultas</h3>
               <div className="flex gap-2">
                 <button 
@@ -1353,16 +1392,107 @@ export default function PatientModal({
                       </select>
                     </div>
                   </div>
+                  {/* Detalhamento dos Procedimentos */}
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-semibold text-slate-700 text-xs uppercase tracking-wider">
+                        Detalhamento de Procedimentos (Valores Separados no Financeiro)
+                      </h5>
+                      {procedures.length > 0 && (
+                        <span className="text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full">
+                          {procedures.length} {procedures.length === 1 ? 'procedimento' : 'procedimentos'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          placeholder="Nome do procedimento (ex: Limpeza, Manutenção)"
+                          value={newProcedureName}
+                          onChange={(e) => setNewProcedureName(e.target.value)}
+                          className="w-full text-sm px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium"
+                        />
+                      </div>
+                      <div className="w-full sm:w-36">
+                        <input
+                          type="number"
+                          step="0.01; any"
+                          placeholder="Valor (R$)"
+                          value={newProcedurePrice}
+                          onChange={(e) => setNewProcedurePrice(e.target.value)}
+                          className="w-full text-sm px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white font-medium"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!newProcedureName.trim() || !newProcedurePrice.trim()) return;
+                          setProcedures([
+                            ...procedures,
+                            {
+                              id: crypto.randomUUID(),
+                              name: newProcedureName.trim(),
+                              price: newProcedurePrice.trim()
+                            }
+                          ]);
+                          setNewProcedureName('');
+                          setNewProcedurePrice('');
+                        }}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm select-none"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Adicionar
+                      </button>
+                    </div>
+
+                    {procedures.length > 0 ? (
+                      <div className="space-y-2 max-h-48 overflow-y-auto pt-2">
+                        {procedures.map((proc, index) => (
+                          <div key={proc.id} className="flex justify-between items-center bg-white border border-slate-100 px-4 py-2 rounded-lg shadow-xs hover:border-slate-200 transition-colors">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-slate-450 font-mono">#{index + 1}</span>
+                              <span className="text-sm font-semibold text-slate-700">{proc.name}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm text-teal-700 font-bold font-mono">
+                                R$ {parseFloat(proc.price).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setProcedures(procedures.filter(p => p.id !== proc.id))}
+                                className="p-1 text-slate-450 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                title="Remover"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-450 italic mt-1">
+                        Dica: se registrar múltiplos procedimentos aqui, cada um será lançado separadamente no financeiro com seu respectivo valor!
+                      </p>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Valor deste Atendimento (R$)</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Valor deste Atendimento (R$)
+                        {procedures.length > 0 && (
+                          <span className="ml-2 text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider">Calculado</span>
+                        )}
+                      </label>
                       <input
                         type="number"
                         step="0.01"
                         placeholder="0,00"
                         value={consultationForm.amount}
+                        disabled={procedures.length > 0}
                         onChange={(e) => setConsultationForm({...consultationForm, amount: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                        className={`w-full px-3 py-2 border rounded-lg outline-none transition-colors ${procedures.length > 0 ? 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed font-mono font-semibold' : 'border-slate-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500'}`}
                       />
                     </div>
                     <div>
