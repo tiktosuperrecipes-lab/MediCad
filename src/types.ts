@@ -31,6 +31,14 @@ export interface Certificate {
   text: string;
 }
 
+export interface Declaration {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  text: string;
+}
+
 export interface BudgetItem {
   id: string;
   description: string;
@@ -179,6 +187,7 @@ export interface Patient {
   prescriptions?: Prescription[];
   examRequests?: ExamRequest[];
   certificates?: Certificate[];
+  declarations?: Declaration[];
 
   // Financeiro
   budgets?: Budget[];

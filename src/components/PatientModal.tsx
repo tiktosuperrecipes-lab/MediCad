@@ -44,7 +44,7 @@ export default function PatientModal({
   openNewConsultation?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<'details' | 'history' | 'prescriptions' | 'certificates' | 'financial' | 'odontogram'>(initialTab);
-  const [printMode, setPrintMode] = useState<'history' | 'prescription' | 'exam' | 'certificate' | 'details' | 'budget' | 'receipt'>('details');
+  const [printMode, setPrintMode] = useState<'history' | 'prescription' | 'exam' | 'certificate' | 'declaration' | 'details' | 'budget' | 'receipt'>('details');
   const [settings, setSettings] = useState<ClinicSettings | null>(null);
 
   // Custom Alert & Confirm States
@@ -219,6 +219,13 @@ export default function PatientModal({
     days: 1,
     cid: ''
   });
+  const [certificateType, setCertificateType] = useState<'atestado' | 'declaracao'>('atestado');
+  const [declarationForm, setDeclarationForm] = useState({
+    date: getLocalDateString(),
+    startTime: '09:00',
+    endTime: '10:00',
+    text: ''
+  });
 
   // Payer State
   const [isEditingPayer, setIsEditingPayer] = useState(false);
@@ -311,7 +318,7 @@ export default function PatientModal({
     }, 0);
   }, [availableBudgets]);
 
-  const handlePrint = (mode: 'history' | 'prescription' | 'exam' | 'certificate' | 'details' | 'budget' | 'receipt', callback?: () => void) => {
+  const handlePrint = (mode: 'history' | 'prescription' | 'exam' | 'certificate' | 'declaration' | 'details' | 'budget' | 'receipt', callback?: () => void) => {
     setPrintMode(mode);
     setTimeout(() => {
       window.print();
@@ -550,6 +557,25 @@ export default function PatientModal({
     savePatient(updatedPatient);
     onUpdate(updatedPatient);
     handlePrint('certificate', () => setCertificateForm({ days: 1, cid: '' }));
+  };
+
+  const handleSaveDeclaration = () => {
+    const text = `Declaro para os devidos fins que o(a) Sr(a). ${patient.fullName}, portador(a) do CPF ${patient.cpf}, esteve sob meus cuidados profissionais no dia ${formatDateShort(declarationForm.date)}, no período compreendido entre as ${declarationForm.startTime} e ${declarationForm.endTime} horas.${declarationForm.text ? ` Observação: ${declarationForm.text}` : ''}`;
+    
+    const newDecl: Declaration = {
+      id: crypto.randomUUID(),
+      date: declarationForm.date,
+      startTime: declarationForm.startTime,
+      endTime: declarationForm.endTime,
+      text: declarationForm.text
+    };
+    const updatedPatient = {
+      ...patient,
+      declarations: [newDecl, ...(patient.declarations || [])]
+    };
+    savePatient(updatedPatient);
+    onUpdate(updatedPatient);
+    handlePrint('declaration', () => setDeclarationForm({ date: getLocalDateString(), startTime: '09:00', endTime: '10:00', text: '' }));
   };
 
   const handleAddBudgetItem = () => {
@@ -1054,7 +1080,7 @@ export default function PatientModal({
                 className={`py-3 sm:py-4 font-bold text-[11px] sm:text-xs uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${activeTab === 'certificates' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
               >
                 <FileBadge className="h-4 w-4" />
-                <span>Atestados</span>
+                <span>Documentos</span>
               </button>
               <button 
                 onClick={() => setActiveTab('financial')}
@@ -2059,54 +2085,126 @@ export default function PatientModal({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
             transition={{ type: "spring", stiffness: 1000, damping: 50 }}
-            className={`${printMode === 'certificate' ? 'print:block' : 'print:hidden'} w-full`}
+            className={`${printMode === 'certificate' || printMode === 'declaration' ? 'print:block' : 'print:hidden'} w-full`}
           >
             <div className="flex items-center justify-between mb-6 print:hidden">
-              <h3 className="text-lg font-semibold text-slate-800">Atestado Odontológico</h3>
+              <div className="flex bg-slate-100 p-1 rounded-xl">
+                <button
+                  onClick={() => setCertificateType('atestado')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${certificateType === 'atestado' ? 'bg-white shadow-sm text-teal-600' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Atestado
+                </button>
+                <button
+                  onClick={() => setCertificateType('declaracao')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${certificateType === 'declaracao' ? 'bg-white shadow-sm text-teal-600' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Declaração
+                </button>
+              </div>
               <button 
-                onClick={handleSaveCertificate}
+                onClick={certificateType === 'atestado' ? handleSaveCertificate : handleSaveDeclaration}
                 className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors"
               >
                 <Printer className="h-4 w-4" />
-                Imprimir Atestado
+                Imprimir {certificateType === 'atestado' ? 'Atestado' : 'Declaração'}
               </button>
             </div>
 
-            <div className="hidden print:block border-b-2 border-slate-800 pb-2 mb-12">
-              <h3 className="text-2xl font-bold text-slate-900 text-center">ATESTADO ODONTOLÓGICO</h3>
-            </div>
-
-            <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8 print:hidden">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Dias de Repouso</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={certificateForm.days}
-                    onChange={(e) => setCertificateForm({...certificateForm, days: parseInt(e.target.value) || 1})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-                  />
+            {certificateType === 'atestado' ? (
+              <>
+                <div className="hidden print:block border-b-2 border-slate-800 pb-2 mb-12">
+                  <h3 className="text-2xl font-bold text-slate-900 text-center uppercase">Atestado Odontológico</h3>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">CID (Opcional)</label>
-                  <input
-                    type="text"
-                    value={certificateForm.cid}
-                    onChange={(e) => setCertificateForm({...certificateForm, cid: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none uppercase"
-                    placeholder="Ex: K04.0"
-                  />
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-white p-8 border border-slate-200 rounded-xl print:border-none print:p-0 text-lg leading-loose text-slate-900 text-justify">
-              Atesto para os devidos fins que o(a) paciente <strong>{patient.fullName}</strong>, 
-              portador(a) do CPF <strong>{patient.cpf}</strong>, necessita de <strong>{certificateForm.days}</strong> {certificateForm.days === 1 ? 'dia' : 'dias'} de repouso 
-              a partir desta data por motivos de tratamento odontológico.
-              {certificateForm.cid && <span> CID: <strong>{certificateForm.cid}</strong>.</span>}
-            </div>
+                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8 print:hidden">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Dias de Repouso</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={certificateForm.days}
+                        onChange={(e) => setCertificateForm({...certificateForm, days: parseInt(e.target.value) || 1})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">CID (Opcional)</label>
+                      <input
+                        type="text"
+                        value={certificateForm.cid}
+                        onChange={(e) => setCertificateForm({...certificateForm, cid: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none uppercase"
+                        placeholder="Ex: K04.0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 border border-slate-200 rounded-xl print:border-none print:p-0 text-lg leading-loose text-slate-900 text-justify">
+                  Atesto para os devidos fins que o(a) paciente <strong>{patient.fullName}</strong>, 
+                  portador(a) do CPF <strong>{formatCPF(patient.cpf)}</strong>, necessita de <strong>{certificateForm.days}</strong> {certificateForm.days === 1 ? 'dia' : 'dias'} de repouso 
+                  a partir desta data por motivos de tratamento odontológico.
+                  {certificateForm.cid && <span> CID: <strong>{certificateForm.cid}</strong>.</span>}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="hidden print:block border-b-2 border-slate-800 pb-2 mb-12">
+                  <h3 className="text-2xl font-bold text-slate-900 text-center uppercase">Declaração de Comparecimento</h3>
+                </div>
+
+                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8 print:hidden">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Data</label>
+                      <input
+                        type="date"
+                        value={declarationForm.date}
+                        onChange={(e) => setDeclarationForm({...declarationForm, date: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Início</label>
+                      <input
+                        type="time"
+                        value={declarationForm.startTime}
+                        onChange={(e) => setDeclarationForm({...declarationForm, startTime: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Término</label>
+                      <input
+                        type="time"
+                        value={declarationForm.endTime}
+                        onChange={(e) => setDeclarationForm({...declarationForm, endTime: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Observação (Opcional)</label>
+                    <input
+                      type="text"
+                      value={declarationForm.text}
+                      onChange={(e) => setDeclarationForm({...declarationForm, text: e.target.value})}
+                      placeholder="Ex: Comparecimento para consulta de rotina"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 border border-slate-200 rounded-xl print:border-none print:p-0 text-lg leading-loose text-slate-900 text-justify">
+                  Declaro para os devidos fins que o(a) Sr(a). <strong>{patient.fullName}</strong>, 
+                  portador(a) do CPF <strong>{formatCPF(patient.cpf)}</strong>, esteve sob meus cuidados profissionais no dia 
+                  <strong> {formatDateShort(declarationForm.date)}</strong>, no período compreendido entre as <strong>{declarationForm.startTime}</strong> e <strong>{declarationForm.endTime}</strong> horas.
+                  {declarationForm.text && <div><br/>Observação: {declarationForm.text}</div>}
+                </div>
+              </>
+            )}
           </motion.div>
           )}
 
