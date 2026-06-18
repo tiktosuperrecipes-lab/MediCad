@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Printer, User, MapPin, Activity, FileText, Calendar, Phone, Mail, Plus, Save, Pill, Stethoscope, FileBadge, DollarSign, Trash2, Image as ImageIcon, Upload, Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, Edit2, Edit3, FileX, AlertCircle, MessageCircle, Check, AlertTriangle, Link, ExternalLink, Globe } from 'lucide-react';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
-import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Budget, BudgetItem, Payment, PatientPhoto, OdontogramData, PatientLink } from '../types';
+import { Patient, Consultation, Prescription, Medication, ExamRequest, Certificate, Declaration, Budget, BudgetItem, Payment, PatientPhoto, OdontogramData, PatientLink } from '../types';
 import { savePatient, addClinicalEvolution, addFinancialRecord, updateFinancialRecord, addPatientPhoto, removePatientPhoto, addGlobalFinancialRecord, updateGlobalFinancialRecordReceipt, deleteGlobalFinancialRecord, deleteClinicalEvolution, updateClinicalEvolution, updatePaymentFee, addPatientLink, removePatientLink } from '../lib/storage';
 import { getSettings, ClinicSettings } from '../lib/settings';
 import { getLocalDateString, formatDateShort, formatDateLong } from '../lib/dateUtils';

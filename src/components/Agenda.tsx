@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, FileText, CheckCircle, X, Plus, AlertCircle, Check } from 'lucide-react';
+import { Calendar, Clock, User, FileText, CheckCircle, X, Plus, AlertCircle, Check, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Patient, Appointment } from '../types';
 import { getAppointments, saveAppointment, deleteAppointment } from '../lib/storage';
@@ -40,6 +40,35 @@ export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
       cancelText
     });
   };
+
+  const [patientSearch, setPatientSearch] = useState('');
+  const [isPatientListOpen, setIsPatientListOpen] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+
+  const filteredPatients = React.useMemo(() => {
+    // Normalização para busca sem acentos e case-insensitive
+    const normalizeStr = (val: string) => 
+      val.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    const search = normalizeStr(patientSearch.trim());
+    const sorted = [...patients].sort((a, b) => a.fullName.localeCompare(b.fullName, 'pt-BR', { sensitivity: 'base' }));
+    
+    if (!search) return sorted;
+    
+    return sorted.filter(p => {
+      const normalizedName = normalizeStr(p.fullName);
+      const cleanCpf = p.cpf ? p.cpf.replace(/\D/g, '') : '';
+      const cleanSearch = search.replace(/\D/g, '');
+      
+      // Busca por nome (normalizado)
+      if (normalizedName.includes(search)) return true;
+      
+      // Busca por CPF (se a pesquisa parecer um número)
+      if (cleanSearch && cleanCpf.includes(cleanSearch)) return true;
+      
+      return false;
+    });
+  }, [patients, patientSearch]);
 
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -103,6 +132,13 @@ export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
   useEffect(() => {
     loadAppointments();
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      setPatientSearch('');
+      setIsPatientListOpen(false);
+    }
+  }, [isModalOpen]);
 
   const handleOpenModal = (time: string, appointment?: Appointment) => {
     setSelectedTime(time);
@@ -348,23 +384,98 @@ export default function Agenda({ patients, onAddNewPatient }: AgendaProps) {
                   Paciente
                 </label>
                 <div className="flex gap-2">
-                  <select
-                    value={formData.patientId}
-                    onChange={(e) => setFormData({...formData, patientId: e.target.value})}
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white"
-                  >
-                    <option value="">-- Selecione um paciente --</option>
-                    {patients.map(p => (
-                      <option key={p.id} value={p.id}>{p.fullName}</option>
-                    ))}
-                  </select>
+                  <div className="relative flex-1 group">
+                    <input
+                      type="text"
+                      placeholder={(!isInputFocused && formData.patientId) ? "" : "Pesquisar por nome ou CPF..."}
+                      value={patientSearch}
+                      autoComplete="off"
+                      onChange={(e) => {
+                        setPatientSearch(e.target.value);
+                        setIsPatientListOpen(true);
+                      }}
+                      onFocus={() => {
+                        setIsInputFocused(true);
+                        setIsPatientListOpen(true);
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setIsInputFocused(false);
+                        }, 200);
+                      }}
+                      className="w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none h-10 transition-shadow"
+                    />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal-500 transition-colors">
+                      <Search className="h-4 w-4" />
+                    </div>
+
+                    {patientSearch && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPatientSearch('');
+                          setIsPatientListOpen(true);
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                    
+                    {!isInputFocused && !patientSearch && formData.patientId && (
+                      <div className="absolute inset-y-0 left-10 flex items-center pointer-events-none">
+                        <span className="text-slate-800 font-bold text-sm truncate max-w-[240px]">
+                          {patients.find(p => p.id === formData.patientId)?.fullName}
+                        </span>
+                      </div>
+                    )}
+
+                    <AnimatePresence>
+                      {isPatientListOpen && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-[60]" 
+                            onClick={() => setIsPatientListOpen(false)}
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl z-[70] max-h-60 overflow-y-auto custom-scrollbar"
+                          >
+                            {filteredPatients.length > 0 ? (
+                              filteredPatients.map(p => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData({...formData, patientId: p.id});
+                                    setPatientSearch('');
+                                    setIsPatientListOpen(false);
+                                  }}
+                                  className={`w-full text-left px-4 py-3 hover:bg-slate-50 flex flex-col border-b border-slate-50 last:border-none transition-colors ${formData.patientId === p.id ? 'bg-teal-50 hover:bg-teal-100/50' : ''}`}
+                                >
+                                  <span className="font-bold text-slate-800 text-sm">{p.fullName}</span>
+                                  {p.cpf && <span className="text-[10px] text-slate-500 font-medium">CPF: {p.cpf}</span>}
+                                </button>
+                              ))
+                            ) : (
+                              <div className="p-4 text-center text-slate-500 text-sm italic">
+                                Nenhum paciente encontrado
+                              </div>
+                            )}
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
                       handleCloseModal();
                       onAddNewPatient();
                     }}
-                    className="p-2 bg-teal-50 text-teal-600 rounded-lg border border-teal-200 hover:bg-teal-100 transition-colors"
+                    className="p-2 bg-teal-50 text-teal-600 rounded-lg border border-teal-200 hover:bg-teal-100 transition-colors h-10 flex-shrink-0"
                     title="Cadastrar novo paciente"
                   >
                     <Plus className="h-5 w-5" />
